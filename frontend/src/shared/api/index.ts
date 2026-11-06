@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { mockCall } from './mock'
+import { mockCall, setMockProgressHandler } from './mock'
 import type {
   AppState,
   CoreError,
@@ -11,6 +11,9 @@ import type {
   RepairRecord,
   RepairResult,
   Settings,
+  UpdateCheck,
+  UpdatePackage,
+  UpdateProgress,
   View
 } from './types'
 
@@ -19,7 +22,7 @@ export const isMock = import.meta.env.DEV && !('__TAURI_INTERNALS__' in window)
 async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (isMock) {
     await new Promise((resolve) => setTimeout(resolve, 90))
-    return mockCall(command, args) as T
+    return (await mockCall(command, args)) as T
   }
   return invoke<T>(command, args)
 }
@@ -61,7 +64,11 @@ export const api = {
   openPanel: () => call<void>('open_panel'),
   setView: (view: View) => call<void>('set_view', { view }),
   hideWindow: () => call<void>('hide_window'),
-  getInitialView: () => call<View>('get_initial_view')
+  getInitialView: () => call<View>('get_initial_view'),
+  checkUpdate: (force = false) => call<UpdateCheck>('check_update', { force }),
+  downloadUpdate: (version: string) => call<UpdatePackage>('download_update', { version }),
+  installUpdate: () => call<void>('install_update'),
+  openReleasePage: (version: string) => call<void>('open_release_page', { version })
 }
 
 export async function onStateChanged(handler: (state: AppState) => void): Promise<UnlistenFn> {
@@ -72,4 +79,14 @@ export async function onStateChanged(handler: (state: AppState) => void): Promis
 export async function onNavigate(handler: (view: View) => void): Promise<UnlistenFn> {
   if (isMock) return () => {}
   return listen<View>('navigate', (event) => handler(event.payload))
+}
+
+export async function onUpdateProgress(
+  handler: (progress: UpdateProgress) => void
+): Promise<UnlistenFn> {
+  if (isMock) {
+    setMockProgressHandler(handler)
+    return () => setMockProgressHandler(null)
+  }
+  return listen<UpdateProgress>('update-progress', (event) => handler(event.payload))
 }

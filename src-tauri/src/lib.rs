@@ -2,6 +2,7 @@ mod app_ctx;
 mod commands;
 mod hotkeys;
 mod tray;
+mod update;
 mod window;
 
 use app_ctx::AppCtx;
@@ -91,7 +92,11 @@ pub fn run() {
             commands::open_panel,
             commands::set_view,
             commands::hide_window,
-            commands::get_initial_view
+            commands::get_initial_view,
+            update::check_update,
+            update::download_update,
+            update::install_update,
+            update::open_release_page
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -101,6 +106,12 @@ pub fn run() {
             std::fs::create_dir_all(&data_dir)?;
             let store = StateStore::new(&data_dir);
             let loaded = store.load();
+
+            // 更新包放在 local app data 下（同 identifier），不当成用户配置随漫游同步。
+            let local_dir = app.path().app_local_data_dir()?;
+            std::fs::create_dir_all(&local_dir)?;
+            let update_dir = local_dir.join("updates");
+            std::fs::create_dir_all(&update_dir)?;
 
             let on_state: Arc<dyn Fn(&lightproxy_core::AppState) + Send + Sync> =
                 Arc::new(|state| {
@@ -124,7 +135,7 @@ pub fn run() {
             );
             let actor = ActorHandle::spawn(service)
                 .map_err(|err| Box::new(err) as Box<dyn std::error::Error>)?;
-            app.manage(AppCtx::new(actor.clone(), data_dir.clone()));
+            app.manage(AppCtx::new(actor.clone(), data_dir.clone(), update_dir));
 
             let state = actor
                 .get_state()

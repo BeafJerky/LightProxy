@@ -4,7 +4,7 @@
 
 - 当前处于 **测试版**（0.x）。不承诺稳定、兼容或数据安全，行为、状态结构与代理接管策略都可能调整。
 - 进入 `1.0.0` 的条件：Windows 10 / 11 实机完成开启、关闭、切换、异常恢复、安装/升级/卸载验证；无已知高严重度问题；文档与安装说明同步。
-- 用户可见位置统一写法：中文 `v0.1.1 · 测试版`，英文 `v0.1.1 (beta)`。不得出现“稳定版”“正式版”等表述。
+- 用户可见位置统一写法：中文 `v0.1.3 · 测试版`，英文 `v0.1.3 (beta)`。不得出现“稳定版”“正式版”等表述。
 - 0.x 期间 GitHub Release 一律标记为 **pre-release**；标签仍使用 `vX.Y.Z`。
 
 ## 2. 版本号
@@ -23,12 +23,14 @@
 
 - 已发布的版本号不得复用；发布后任何改动至少升 `PATCH`。
 - 未发布的开发版本可以覆盖，覆盖前需确认。
-- 版本号共 5 处，必须同时更新：
+- 版本号共 5 个文件，必须同时更新：
   1. `package.json`
   2. `src-tauri/tauri.conf.json5`
   3. `Cargo.toml`（`[workspace.package]`）
-  4. `Cargo.lock`（`lightproxy` 与 `lightproxy-core`）
+  4. `Cargo.lock`（`lightproxy`、`lightproxy-core` 与 `lightproxy-update`）
   5. `frontend/src/shared/version.ts`
+
+`pnpm version:check` 校验上述 5 个文件的 7 个条目（`Cargo.lock` 覆盖 3 个 crate），任一不一致即失败。
 
 ```bash
 pnpm version:bump patch    # 或 minor / major / 0.2.0
@@ -64,7 +66,7 @@ pnpm tauri build
 7. 创建附注标签并推送（需明确授权）：
 
 ```bash
-git tag -a v0.1.1 -m "LightProxy 0.1.1（测试版）"
+git tag -a v0.1.3 -m "LightProxy 0.1.3（测试版）"
 git push origin main --tags
 ```
 
@@ -86,7 +88,8 @@ git push origin main --tags
 - 只接管当前用户的 WinINET 系统代理，不写 `HKLM`、不要求管理员权限。
 - HTTP / HTTPS 配置可启用；SOCKS5 当前只保存，不写入系统代理。
 - 不编辑 PAC；检测到 `AutoConfigURL` 时默认拒绝启用，需用户确认后强制开启。
-- 暂不提供自动更新；升级需手动安装新版本。
+- 关于页提供手动检查与安装更新；不会后台轮询或静默安装，安装时应用按退出设置恢复代理。
+- 更新检查依赖公开仓库的 Release Atom 源；私有仓库下检查会失败。
 - 测试版可能调整状态文件结构，升级前建议保留 `state.json` 备份。
 
 ## 6. 发布说明模板

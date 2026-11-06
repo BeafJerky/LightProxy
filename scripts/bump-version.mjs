@@ -55,7 +55,7 @@ write(
 write(
   targets.lock,
   read(targets.lock).replace(
-    /(name = "lightproxy(?:-core)?"\nversion = ")[^"]+(")/g,
+    /(name = "lightproxy(?:-core|-update)?"\nversion = ")[^"]+(")/g,
     `$1${version}$2`
   )
 )

@@ -1,16 +1,116 @@
 <script setup lang="ts">
-import { useMessage } from 'naive-ui'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useDialog, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import { onUpdateProgress } from '@/shared/api'
 import { APP_STAGE, APP_VERSION, APP_VERSION_LABEL } from '@/shared/version'
 import Icon from '@/shared/ui/Icon.vue'
 import SectionCard from '@/shared/ui/SectionCard.vue'
 
 const store = useAppStore()
 const message = useMessage()
+const dialog = useDialog()
+
+let unlisten: (() => void) | null = null
+let disposed = false
+
+onMounted(async () => {
+  try {
+    const off = await onUpdateProgress((progress) => store.applyUpdateProgress(progress))
+    if (disposed) {
+      off()
+      return
+    }
+    unlisten = off
+  } catch {
+    // 订阅失败不该连带跳过自动检查：页面仍可手动检查更新
+  } finally {
+    // 卸载后不再触发检查；成功路径提前 return 时同样被 disposed 挡住
+    if (!disposed) void store.checkUpdate(false)
+  }
+})
+
+onUnmounted(() => {
+  disposed = true
+  unlisten?.()
+  unlisten = null
+})
 
 async function openLogs() {
   const path = await store.openLogDir()
   if (path) message.success(`日志目录：${path}`)
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+const updateStatusText = computed(() => {
+  switch (store.updatePhase) {
+    case 'checking':
+      return '正在检查更新…'
+    case 'latest':
+      return '已是最新版本'
+    case 'available':
+      return `发现新版本 v${store.updateCheck?.latestVersion}`
+    case 'downloading':
+      return `正在下载 v${store.updateCheck?.latestVersion}`
+    case 'ready':
+      return '安装包已就绪'
+    case 'installing':
+      return '正在启动安装程序…'
+    case 'error':
+      return '更新遇到问题'
+    default:
+      return '点击「检查更新」查询新版本'
+  }
+})
+
+const updateHint = computed(() => {
+  switch (store.updatePhase) {
+    case 'idle':
+      return `当前版本 v${APP_VERSION} · ${APP_STAGE}`
+    case 'latest':
+      return `当前版本 v${APP_VERSION} 已是最新`
+    case 'available':
+      return `当前 v${APP_VERSION} → v${store.updateCheck?.latestVersion}`
+    case 'ready':
+      return '安装包已下载并通过 SHA256 与文件头校验'
+    default:
+      return ''
+  }
+})
+
+const showDownload = computed(
+  () =>
+    Boolean(store.updateCheck?.available) &&
+    !store.updatePackage &&
+    store.updatePhase !== 'downloading' &&
+    store.updatePhase !== 'checking' &&
+    store.updatePhase !== 'installing'
+)
+
+const progressText = computed(() => {
+  const progress = store.updateProgress
+  if (!progress) return '准备下载…'
+  if (progress.percent === null || !progress.total) {
+    return `已下载 ${formatSize(progress.received)}`
+  }
+  return `${progress.percent}% · ${formatSize(progress.received)} / ${formatSize(progress.total)}`
+})
+
+function confirmInstall() {
+  dialog.warning({
+    title: '安装更新',
+    content: '应用将退出并启动安装程序，代理会按退出设置恢复。',
+    positiveText: '立即安装',
+    negativeText: '取消',
+    onPositiveClick: () => {
+      void store.installUpdate()
+    }
+  })
 }
 </script>
 
@@ -44,10 +144,89 @@ async function openLogs() {
       <div class="info-row"><span>发布阶段</span><strong>{{ APP_STAGE }}（0.x）</strong></div>
     </SectionCard>
 
+    <SectionCard title="更新">
+      <div class="update-body">
+        <div class="update-status">
+          <div class="update-copy">
+            <strong>{{ updateStatusText }}</strong>
+            <p v-if="store.updateError" class="update-error" role="alert">
+              {{ store.updateError.message }}
+              <span v-if="store.updateError.hint">· {{ store.updateError.hint }}</span>
+            </p>
+            <p v-else-if="updateHint" class="update-hint">{{ updateHint }}</p>
+          </div>
+          <div class="update-actions">
+            <button
+              class="mini-btn"
+              type="button"
+              :disabled="
+                store.updatePhase === 'checking' ||
+                store.updatePhase === 'downloading' ||
+                store.updatePhase === 'installing'
+              "
+              @click="store.checkUpdate(true)"
+            >
+              <Icon name="refresh" :size="14" />
+              {{ store.updatePhase === 'checking' ? '正在检查…' : '检查更新' }}
+            </button>
+            <button
+              v-if="showDownload"
+              class="mini-btn primary"
+              type="button"
+              @click="store.downloadUpdate()"
+            >
+              {{ store.updatePhase === 'error' ? '重试下载' : '下载更新' }}
+            </button>
+            <button
+              v-if="store.updatePhase === 'ready'"
+              class="mini-btn primary"
+              type="button"
+              @click="confirmInstall"
+            >
+              立即安装
+            </button>
+          </div>
+        </div>
+
+        <div v-if="store.updatePhase === 'downloading'" class="update-progress">
+          <div
+            class="bar"
+            role="progressbar"
+            aria-label="更新下载进度"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :aria-valuenow="store.updateProgress?.percent ?? undefined"
+            :aria-valuetext="progressText"
+          >
+            <span :style="{ width: `${store.updateProgress?.percent ?? 0}%` }" />
+          </div>
+          <div class="update-meta">
+            <span>{{ progressText }}</span>
+            <span v-if="store.updateProgress">来源：{{ store.updateProgress.source }}</span>
+          </div>
+        </div>
+
+        <div v-else-if="store.updatePhase === 'ready' && store.updatePackage" class="update-meta ready">
+          <span>{{ formatSize(store.updatePackage.size) }}</span>
+          <span>来源：{{ store.updatePackage.source }}</span>
+        </div>
+
+        <button
+          v-if="store.updateCheck?.releaseUrl"
+          class="link-btn"
+          type="button"
+          @click="store.openReleasePage()"
+        >
+          查看发布说明
+        </button>
+        <p class="update-foot">更新需手动确认，不会静默安装；安装时应用将退出。</p>
+      </div>
+    </SectionCard>
+
     <SectionCard title="测试版说明">
       <div class="note-row">
         <strong>当前为 0.x 测试版</strong>
-        <p>功能、界面与数据格式可能继续调整，暂不承诺向后兼容，也不提供自动更新。</p>
+        <p>功能、界面与数据格式可能继续调整，暂不承诺向后兼容；更新需手动检查并确认，不会静默安装。</p>
       </div>
       <div class="note-row">
         <strong>反馈问题</strong>
@@ -200,5 +379,102 @@ async function openLogs() {
   justify-content: space-between;
   gap: 16px;
   padding: 8px 0 10px;
+}
+
+.update-body {
+  padding: 4px 0 10px;
+}
+
+.update-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 0 2px;
+}
+
+.update-copy {
+  min-width: 0;
+}
+
+.update-copy strong {
+  display: block;
+  font-size: 12.5px;
+}
+
+.update-hint,
+.update-foot {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.update-error {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--danger);
+}
+
+.update-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.update-progress {
+  padding: 8px 0 2px;
+}
+
+.bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.update-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.update-meta.ready {
+  margin-top: 4px;
+}
+
+.link-btn {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.update-foot {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 </style>

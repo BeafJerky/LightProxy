@@ -1,4 +1,5 @@
 import { nowMs } from '@/shared/time'
+import { APP_VERSION } from '@/shared/version'
 import { DEFAULT_SETTINGS } from './defaults'
 import type {
   AppState,
@@ -9,7 +10,10 @@ import type {
   ProfileInput,
   RepairRecord,
   RepairResult,
-  Settings
+  Settings,
+  UpdateCheck,
+  UpdatePackage,
+  UpdateProgress
 } from './types'
 
 function error(code: string, message: string, hint?: string): never {
@@ -47,6 +51,60 @@ function initialState(): AppState {
 }
 
 let state = initialState()
+
+let mockProgressHandler: ((progress: UpdateProgress) => void) | null = null
+
+export function setMockProgressHandler(handler: ((progress: UpdateProgress) => void) | null) {
+  mockProgressHandler = handler
+}
+
+function updateFailEnabled(): boolean {
+  // Node/vitest 下 localStorage 可能不可用，mock 只是开发期辅助，读不到即视为未开启。
+  try {
+    return localStorage.getItem('lp_mock_update_fail') === '1'
+  } catch {
+    return false
+  }
+}
+
+function mockUpdateCheck(): UpdateCheck {
+  if (updateFailEnabled()) {
+    error('update_check_failed', '检查更新失败：模拟网络不可用', '检查网络或代理后重试')
+  }
+  return {
+    currentVersion: APP_VERSION,
+    latestVersion: '0.1.4',
+    available: true,
+    releaseUrl: 'https://github.com/BeafJerky/LightProxy/releases/tag/v0.1.4',
+    assetName: 'LightProxy_0.1.4_x64-setup.exe',
+    source: '直连',
+    checkedAtMs: nowMs()
+  }
+}
+
+async function mockDownload(version: string): Promise<UpdatePackage> {
+  if (updateFailEnabled()) {
+    error('update_download_failed', '下载安装包失败：模拟网络中断', '重试或切换网络')
+  }
+  const total = 3_400_000
+  for (let step = 1; step <= 5; step += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    mockProgressHandler?.({
+      version,
+      received: Math.round((total * step) / 5),
+      total,
+      percent: step * 20,
+      source: '直连'
+    })
+  }
+  return {
+    version,
+    fileName: `LightProxy_${version}_x64-setup.exe`,
+    size: total,
+    sha256: 'mock',
+    source: '直连'
+  }
+}
 
 const repairs: RepairRecord[] = []
 
@@ -97,7 +155,10 @@ function deepMerge(target: Settings, patch: Record<string, unknown>): Settings {
   return next as unknown as Settings
 }
 
-export function mockCall(command: string, args: Record<string, unknown> = {}): unknown {
+export function mockCall(
+  command: string,
+  args: Record<string, unknown> = {}
+): unknown | Promise<unknown> {
   switch (command) {
     case 'get_state':
       return state
@@ -205,6 +266,14 @@ export function mockCall(command: string, args: Record<string, unknown> = {}): u
       return { path: '%LOCALAPPDATA%\\com.lightproxy.desktop\\logs\\diagnostics-mock.json' }
     case 'get_initial_view':
       return 'panel'
+    case 'check_update':
+      return mockUpdateCheck()
+    case 'download_update':
+      return mockDownload(String(args.version))
+    case 'install_update':
+      return null
+    case 'open_release_page':
+      return null
     case 'quit_app':
     case 'open_settings':
     case 'open_panel':

@@ -1,3 +1,4 @@
+use crate::update::UpdateManager;
 use lightproxy_core::{ActorHandle, Watcher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -15,6 +16,7 @@ pub enum HotkeyAction {
 pub struct AppCtx {
     pub actor: ActorHandle,
     pub data_dir: PathBuf,
+    pub update: UpdateManager,
     pub view: Mutex<String>,
     pub autohide_generation: AtomicU64,
     pub hotkey_map: Mutex<Vec<(Shortcut, HotkeyAction)>>,
@@ -23,10 +25,11 @@ pub struct AppCtx {
 }
 
 impl AppCtx {
-    pub fn new(actor: ActorHandle, data_dir: PathBuf) -> Self {
+    pub fn new(actor: ActorHandle, data_dir: PathBuf, update_dir: PathBuf) -> Self {
         Self {
             actor,
             data_dir,
+            update: UpdateManager::new(update_dir),
             view: Mutex::new("panel".into()),
             autohide_generation: AtomicU64::new(0),
             hotkey_map: Mutex::new(Vec::new()),

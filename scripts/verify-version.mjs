@@ -33,6 +33,11 @@ const versions = {
     /name = "lightproxy-core"\nversion = "([^"]+)"/,
     'Cargo.lock'
   ),
+  'Cargo.lock (lightproxy-update)': match(
+    read('Cargo.lock'),
+    /name = "lightproxy-update"\nversion = "([^"]+)"/,
+    'Cargo.lock'
+  ),
   'frontend/src/shared/version.ts': match(
     read('frontend/src/shared/version.ts'),
     /APP_VERSION = '([^']+)'/,

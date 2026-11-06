@@ -10,7 +10,7 @@ use std::fs;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_autostart::ManagerExt;
 
-async fn blocking<T, F>(work: F) -> Result<T, CoreError>
+pub(crate) async fn blocking<T, F>(work: F) -> Result<T, CoreError>
 where
     T: Send + 'static,
     F: FnOnce() -> Result<T, CoreError> + Send + 'static,

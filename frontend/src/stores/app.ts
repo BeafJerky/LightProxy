@@ -12,6 +12,9 @@ import type {
   RepairResult,
   Settings,
   SettingsPage,
+  UpdateCheck,
+  UpdatePackage,
+  UpdateProgress,
   View
 } from '@/shared/api/types'
 import { isThemeId } from '@/shared/theme/themes'
@@ -40,6 +43,13 @@ export const useAppStore = defineStore('app', () => {
   const diagnostics = ref<Diagnostic[]>([])
   const repairs = ref<RepairRecord[]>([])
   const ready = ref(false)
+  const updateCheck = ref<UpdateCheck | null>(null)
+  const updatePackage = ref<UpdatePackage | null>(null)
+  const updateProgress = ref<UpdateProgress | null>(null)
+  const updateError = ref<CoreError | null>(null)
+  const updateBusy = ref<'check' | 'download' | 'install' | null>(null)
+  // 安装器启动成功后应用会退出；mock 下不会，用独立标记保持 installing 而不占住 updateBusy
+  const installLaunched = ref(false)
 
   const settings = computed<Settings>(() => state.value?.settings ?? DEFAULT_SETTINGS)
   const profiles = computed(() => state.value?.profiles ?? [])
@@ -98,6 +108,20 @@ export const useAppStore = defineStore('app', () => {
       default:
         return 'off'
     }
+  })
+  const updatePhase = computed<
+    'idle' | 'checking' | 'latest' | 'available' | 'downloading' | 'ready' | 'installing' | 'error'
+  >(() => {
+    if (updateError.value) return 'error'
+    if (updateBusy.value === 'check') return 'checking'
+    if (updateBusy.value === 'download') return 'downloading'
+    if (updateBusy.value === 'install') return 'installing'
+    if (installLaunched.value) return 'installing'
+    if (updatePackage.value && updateCheck.value?.latestVersion === updatePackage.value.version) {
+      return 'ready'
+    }
+    if (updateCheck.value) return updateCheck.value.available ? 'available' : 'latest'
+    return 'idle'
   })
 
   async function run<T>(key: string, work: () => Promise<T>): Promise<T | null> {
@@ -228,6 +252,76 @@ export const useAppStore = defineStore('app', () => {
     return run('logs', () => api.openLogDir())
   }
 
+  async function checkUpdate(force = false) {
+    if (updateBusy.value) return
+    updateError.value = null
+    installLaunched.value = false
+    updateBusy.value = 'check'
+    try {
+      const result = await api.checkUpdate(force)
+      updateCheck.value = result
+      if (!result.available) {
+        updatePackage.value = null
+        updateProgress.value = null
+      } else if (updatePackage.value && updatePackage.value.version !== result.latestVersion) {
+        updatePackage.value = null
+        updateProgress.value = null
+      }
+    } catch (caught) {
+      updateError.value = toCoreError(caught)
+    } finally {
+      updateBusy.value = null
+    }
+  }
+
+  async function downloadUpdate() {
+    const latest = updateCheck.value
+    if (!latest?.available || !latest.latestVersion || updateBusy.value) return
+    updateError.value = null
+    updateProgress.value = null
+    updateBusy.value = 'download'
+    try {
+      updatePackage.value = await api.downloadUpdate(latest.latestVersion)
+    } catch (caught) {
+      updatePackage.value = null
+      updateError.value = toCoreError(caught)
+    } finally {
+      updateBusy.value = null
+    }
+  }
+
+  async function installUpdate() {
+    if (!updatePackage.value || updateBusy.value) return
+    updateError.value = null
+    updateBusy.value = 'install'
+    try {
+      await api.installUpdate()
+      installLaunched.value = true
+    } catch (caught) {
+      updateError.value = toCoreError(caught)
+    } finally {
+      updateBusy.value = null
+    }
+  }
+
+  async function openReleasePage() {
+    const version = updateCheck.value?.latestVersion
+    if (!version) return
+    try {
+      await api.openReleasePage(version)
+    } catch (caught) {
+      updateError.value = toCoreError(caught)
+    }
+  }
+
+  function applyUpdateProgress(progress: UpdateProgress) {
+    // 只有下载阶段接受进度：其它阶段的事件都是迟到的旧值
+    if (updateBusy.value !== 'download') return
+    // 事件可能晚于状态切换到达，只接受当前检查版本的进度
+    if (updateCheck.value?.latestVersion !== progress.version) return
+    updateProgress.value = progress
+  }
+
   watch(
     () => settings.value.theme,
     (theme) => {
@@ -276,6 +370,16 @@ export const useAppStore = defineStore('app', () => {
     repair,
     repairAll,
     exportDiagnostics,
-    openLogDir
+    openLogDir,
+    updateCheck,
+    updatePackage,
+    updateProgress,
+    updateError,
+    updatePhase,
+    checkUpdate,
+    downloadUpdate,
+    installUpdate,
+    openReleasePage,
+    applyUpdateProgress
   }
 })

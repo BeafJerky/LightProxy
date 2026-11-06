@@ -1,6 +1,6 @@
 # LightProxy
 
-> 当前为 **0.x 测试版**（v0.1.1）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
+> 当前为 **0.x 测试版**（v0.1.3）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 Windows 托盘上的系统代理快捷开关。基于 Tauri 2 + Rust + Vue 3 + Naive UI，单实例常驻，面板 360×560，设置页 780×640。
 
@@ -11,6 +11,7 @@ Windows 托盘上的系统代理快捷开关。基于 Tauri 2 + Rust + Vue 3 + N
 - PAC 冲突、代理不可达时给出明确错误，可强制开启
 - 异常退出后自动恢复，代理漂移检测（2s 轮询，不自动覆盖）
 - 健康检查、诊断与一键修复、修复历史
+- 关于页手动检查、下载、校验并安装更新（SHA256 + PE 头校验，不后台轮询、不静默安装）
 - 8 套主题（浅色 / 深色 / 跟随系统 / Win11 亮暗 / Terminal / Paper / 高对比）
 - 全局快捷键、托盘菜单、开机自启
 
@@ -28,7 +29,9 @@ source/
 │  ├─ recovery.rs        # 启动恢复与漂移处理
 │  ├─ repair.rs          # 诊断与修复
 │  └─ watcher.rs         # 注册表漂移监听
+├─ crates/update/        # 纯 Rust 更新检查、下载与校验，不依赖 Tauri
 ├─ src-tauri/            # Tauri 外壳：命令、托盘、窗口、快捷键
+│  └─ src/update.rs      # 更新检查缓存、下载命令与安装器启动
 └─ frontend/             # Vue 3 界面（面板 + 设置）
    ├─ src/shared/api/    # 与 commands.rs 一一对应的类型化封装 + 浏览器 mock
    ├─ src/shared/theme/  # 8 套主题解析与调色板
@@ -78,21 +81,21 @@ pnpm tauri build
 
 ## 版本与发布
 
-当前处于 0.x 测试版，用户可见位置统一写作 `v0.1.1 · 测试版`。
+当前处于 0.x 测试版，用户可见位置统一写作 `v0.1.3 · 测试版`。
 
 - `MINOR`：新增功能、行为调整、配置或持久化结构的不兼容变更。
 - `PATCH`：兼容缺陷修复、文案调整、依赖补丁、性能优化。
 - `MAJOR`：仅用于 1.0.0 阶段切换，不用于 0.x 常规迭代。
 - 0.x 的 GitHub Release 一律标记为 pre-release，标签仍为 `vX.Y.Z`。
 - 已发布版本不复用；发布后任何改动至少升 `PATCH`。未发布开发版本可以覆盖。
-- 暂不提供自动更新，升级需手动安装新版本。
+- 关于页提供手动检查与安装更新；不会后台轮询或静默安装，安装时按退出设置恢复代理。
 
-版本号共 5 处，必须一致：
+版本号共 5 个文件 7 个条目，必须一致：
 
 - `package.json`
 - `src-tauri/tauri.conf.json5`
 - `Cargo.toml`（`[workspace.package]`）
-- `Cargo.lock`（`lightproxy` 与 `lightproxy-core`）
+- `Cargo.lock`（`lightproxy`、`lightproxy-core` 与 `lightproxy-update`）
 - `frontend/src/shared/version.ts`
 
 ```bash
@@ -108,5 +111,6 @@ node scripts/verify-version.mjs
 | --- | --- |
 | 状态与配置 | `%APPDATA%\com.lightproxy.desktop\state.json`（备份 `.bak`，损坏副本 `state.corrupt-*.json`） |
 | 日志与诊断导出 | `%LOCALAPPDATA%\com.lightproxy.desktop\logs` |
+| 更新安装包 | `%LOCALAPPDATA%\com.lightproxy.desktop\updates`（安装包与 `.part` 半成品） |
 
 退出策略默认保留已开启的代理；可在设置中改为退出时关闭代理。

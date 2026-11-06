@@ -95,3 +95,29 @@ export interface CoreError {
 
 export type View = 'panel' | 'settings'
 export type SettingsPage = 'general' | 'appearance' | 'profiles' | 'shortcuts' | 'diagnostics' | 'about'
+
+export interface UpdateCheck {
+  currentVersion: string
+  latestVersion: string | null
+  available: boolean
+  releaseUrl: string | null
+  assetName: string | null
+  source: string | null
+  checkedAtMs: number
+}
+
+export interface UpdateProgress {
+  version: string
+  received: number
+  total: number | null
+  percent: number | null
+  source: string
+}
+
+export interface UpdatePackage {
+  version: string
+  fileName: string
+  size: number
+  sha256: string
+  source: string
+}

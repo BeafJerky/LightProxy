@@ -99,14 +99,9 @@ impl Default for Hotkeys {
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub autostart: bool,
-    pub launch_hidden: bool,
     pub close_action: String,
     pub preflight_enabled: bool,
     pub preflight_timeout_ms: u64,
-    pub periodic_check: bool,
-    pub periodic_interval_sec: u64,
-    pub http_check_enabled: bool,
-    pub http_check_url: String,
     pub theme: String,
     pub hotkeys: Hotkeys,
     pub tray_click_action: String,
@@ -118,14 +113,9 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             autostart: true,
-            launch_hidden: true,
             close_action: "hide".into(),
             preflight_enabled: true,
             preflight_timeout_ms: 800,
-            periodic_check: false,
-            periodic_interval_sec: 60,
-            http_check_enabled: false,
-            http_check_url: "http://www.msftconnecttest.com/connecttest.txt".into(),
             theme: "system".into(),
             hotkeys: Hotkeys::default(),
             tray_click_action: "panel".into(),
@@ -147,14 +137,8 @@ impl Settings {
             self.tray_click_action = "panel".into();
         }
         self.preflight_timeout_ms = self.preflight_timeout_ms.clamp(300, 3000);
-        if ![60, 120, 300].contains(&self.periodic_interval_sec) {
-            self.periodic_interval_sec = 60;
-        }
         if self.proxy_override.trim().is_empty() {
             self.proxy_override = DEFAULT_PROXY_OVERRIDE.into();
-        }
-        if self.http_check_url.trim().is_empty() {
-            self.http_check_url = "http://www.msftconnecttest.com/connecttest.txt".into();
         }
     }
 }
@@ -218,6 +202,8 @@ pub struct RuntimeState {
     pub desired: Desired,
     pub active_profile_id: Option<String>,
     pub last_health: Option<HealthResult>,
+    #[serde(default)]
+    pub last_pac_url: Option<String>,
 }
 
 impl Default for RuntimeState {
@@ -226,6 +212,7 @@ impl Default for RuntimeState {
             desired: Desired::Off,
             active_profile_id: None,
             last_health: None,
+            last_pac_url: None,
         }
     }
 }

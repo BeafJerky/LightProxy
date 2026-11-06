@@ -42,8 +42,9 @@ export const api = {
   toggleProxy: (force = false) => call<AppState>('toggle_proxy', { force }),
   enableProxy: (profileId: string, force = false) => call<AppState>('enable_proxy', { profileId, force }),
   disableProxy: () => call<AppState>('disable_proxy'),
-  switchProfile: (profileId: string) => call<AppState>('switch_profile', { profileId }),
-  checkHealth: (force = true) => call<HealthResult>('check_health', { mode: 'tcp', force }),
+  switchProfile: (profileId: string, force = false) =>
+    call<AppState>('switch_profile', { profileId, force }),
+  checkHealth: (force = false) => call<HealthResult>('check_health', { mode: 'tcp', force }),
   listProfiles: () => call<Profile[]>('list_profiles'),
   saveProfile: (input: ProfileInput) => call<AppState>('save_profile', { input }),
   deleteProfile: (id: string) => call<AppState>('delete_profile', { id }),

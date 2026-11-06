@@ -13,6 +13,7 @@ pub mod recovery;
 pub mod repair;
 pub mod service;
 pub mod store;
+pub mod uninstall;
 pub mod watcher;
 pub mod wininet;
 
@@ -23,5 +24,6 @@ pub use model::*;
 pub use repair::{Diagnostic, RepairResult};
 pub use service::{Command, CommandReply, ProxyService};
 pub use store::{LoadResult, StateStore};
+pub use uninstall::{restore_from_dir, restore_snapshot, RestoreOutcome};
 pub use watcher::Watcher;
 pub use wininet::WinInetBackend;

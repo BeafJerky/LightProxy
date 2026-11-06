@@ -40,6 +40,10 @@ impl StateStore {
         &self.path
     }
 
+    pub fn backup_path(&self) -> &Path {
+        &self.backup
+    }
+
     pub fn is_readonly(&self) -> bool {
         self.readonly.load(Ordering::SeqCst)
     }

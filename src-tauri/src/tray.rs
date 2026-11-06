@@ -177,7 +177,7 @@ fn handle_menu(app: &AppHandle, id: &str) {
             if let Some(profile_id) = id.strip_prefix("profile:") {
                 let profile_id = profile_id.to_string();
                 std::thread::spawn(move || {
-                    let _ = actor.switch_profile(profile_id);
+                    let _ = actor.switch_profile(profile_id, false);
                 });
             }
         }

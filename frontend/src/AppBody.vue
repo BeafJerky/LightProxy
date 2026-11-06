@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useMessage } from 'naive-ui'
 import { onNavigate, onStateChanged } from '@/shared/api'
+import type { View } from '@/shared/api/types'
 import { useAppStore } from '@/stores/app'
 import QuickPanel from '@/features/panel/QuickPanel.vue'
 import SettingsView from '@/features/settings/SettingsView.vue'
@@ -10,8 +11,14 @@ const store = useAppStore()
 const message = useMessage()
 const listeners: Array<() => void> = []
 
+async function maybePanelHealth(view: View) {
+  if (view !== 'panel' || !store.ready || !store.isActive) return
+  await store.checkHealth(false)
+}
+
 onMounted(async () => {
   await store.initialize()
+  void maybePanelHealth(store.view)
   listeners.push(
     await onStateChanged((state) => {
       store.setStateFromEvent(state)
@@ -20,6 +27,7 @@ onMounted(async () => {
   listeners.push(
     await onNavigate((view) => {
       store.view = view
+      void maybePanelHealth(view)
     })
   )
 })

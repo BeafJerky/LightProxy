@@ -9,9 +9,10 @@ import type { Profile } from '@/shared/api/types'
 
 const store = useAppStore()
 const message = useMessage()
-const pendingTarget = ref<string | null>(null)
+const pendingForce = ref<{ mode: 'toggle' | 'switch'; profileId: string | null } | null>(null)
 
 const tone = computed(() => store.stateTone)
+const forceLabel = computed(() => (pendingForce.value?.mode === 'switch' ? '仍然切换' : '仍然开启'))
 const heroTitle = computed(() => (store.isActive ? '关闭代理' : '开启代理'))
 const heroSub = computed(() => {
   if (store.isBusyState) return '正在同步系统设置…'
@@ -27,8 +28,11 @@ const hotkeyLabel = computed(() => store.settings.hotkeys.toggle.replaceAll('+',
 
 async function heroAction() {
   if (store.isBusyState || store.busy) return
-  pendingTarget.value = null
-  await store.toggle()
+  pendingForce.value = null
+  const ok = await store.toggle()
+  if (!ok && store.canForce) {
+    pendingForce.value = { mode: 'toggle', profileId: store.activeProfile?.id ?? null }
+  }
 }
 
 async function selectProfile(profile: Profile) {
@@ -37,20 +41,25 @@ async function selectProfile(profile: Profile) {
     return
   }
   if (profile.id === store.state?.activeProfileId) return
-  pendingTarget.value = profile.id
+  pendingForce.value = null
   const ok = await store.switchProfile(profile.id)
-  if (ok) pendingTarget.value = null
+  if (!ok && store.canForce) {
+    pendingForce.value = { mode: 'switch', profileId: profile.id }
+  }
 }
 
-async function forceEnable() {
-  const id = pendingTarget.value ?? store.activeProfile?.id
-  if (!id) return
-  const ok = await store.enable(id, true)
-  if (ok) pendingTarget.value = null
+async function forceAction() {
+  const pending = pendingForce.value
+  if (!pending?.profileId) return
+  const ok =
+    pending.mode === 'switch'
+      ? await store.switchProfile(pending.profileId, true)
+      : await store.enable(pending.profileId, true)
+  if (ok) pendingForce.value = null
 }
 
 async function checkHealth() {
-  const result = await store.checkHealth()
+  const result = await store.checkHealth(true)
   if (!result) return
   if (result.ok) {
     message.success(`连接正常，延迟 ${result.latencyMs}ms`)
@@ -119,7 +128,9 @@ function openRepair() {
         <strong>需要你确认</strong>
         <span>{{ store.error.message }}</span>
       </div>
-      <button type="button" class="force-btn" :disabled="Boolean(store.busy)" @click="forceEnable">仍然开启</button>
+      <button type="button" class="force-btn" :disabled="Boolean(store.busy)" @click="forceAction">
+        {{ forceLabel }}
+      </button>
     </div>
 
     <div class="section-head">

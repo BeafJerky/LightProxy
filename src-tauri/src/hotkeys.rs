@@ -80,7 +80,7 @@ pub fn run(app: &AppHandle, action: HotkeyAction) {
                 .id
                 .clone();
             std::thread::spawn(move || {
-                let _ = actor.switch_profile(next);
+                let _ = actor.switch_profile(next, false);
             });
         }
     }

@@ -173,11 +173,11 @@ export const useAppStore = defineStore('app', () => {
   const enable = (profileId: string, force = false) =>
     applyState('enable', () => api.enableProxy(profileId, force))
   const disable = () => applyState('disable', () => api.disableProxy())
-  const switchProfile = (profileId: string) =>
-    applyState('switch', () => api.switchProfile(profileId))
+  const switchProfile = (profileId: string, force = false) =>
+    applyState('switch', () => api.switchProfile(profileId, force))
 
-  async function checkHealth() {
-    const result = await run('health', () => api.checkHealth(true))
+  async function checkHealth(force = false) {
+    const result = await run('health', () => api.checkHealth(force))
     if (result && state.value) {
       state.value = { ...state.value, lastHealth: result }
     }

@@ -26,14 +26,9 @@ export interface Hotkeys {
 
 export interface Settings {
   autostart: boolean
-  launchHidden: boolean
   closeAction: 'hide' | 'exit'
   preflightEnabled: boolean
   preflightTimeoutMs: number
-  periodicCheck: boolean
-  periodicIntervalSec: number
-  httpCheckEnabled: boolean
-  httpCheckUrl: string
   theme: string
   hotkeys: Hotkeys
   trayClickAction: 'panel' | 'toggle'

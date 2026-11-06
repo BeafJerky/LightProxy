@@ -80,7 +80,7 @@ fn switch_profile_stays_on_without_extra_disable_write() {
 
     svc.enable("p_default", true).unwrap();
     assert_eq!(backend.writes(), 1);
-    let state = svc.switch_profile("p_backup").unwrap();
+    let state = svc.switch_profile("p_backup", false).unwrap();
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(state.active_profile_id.as_deref(), Some("p_backup"));
     assert_eq!(backend.writes(), 2);
@@ -187,10 +187,56 @@ fn pac_requires_force() {
     assert_eq!(err.code, "pac_conflict");
     assert_eq!(backend.writes(), 0);
     assert_eq!(svc.state().state, ProxyState::Off);
+    assert_eq!(svc.last_pac_url(), None);
 
     let state = svc.enable("p_default", true).unwrap();
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(backend.snapshot().auto_config_url, None);
+    assert_eq!(svc.last_pac_url(), Some("http://pac/proxy.pac"));
+}
+
+#[test]
+fn switching_requires_force_when_pac_appears() {
+    let dir = tempfile::tempdir().unwrap();
+    let backend = Arc::new(MemoryBackend::new(baseline()));
+    let mut svc = service(dir.path(), backend.clone(), persisted_without_preflight());
+
+    svc.enable("p_default", true).unwrap();
+    assert_eq!(svc.last_pac_url(), None);
+
+    let mut drifted = backend.snapshot();
+    drifted.auto_config_url = Some("http://pac/external.pac".into());
+    backend.write(&drifted).unwrap();
+    let writes = backend.writes();
+
+    let err = svc.switch_profile("p_backup", false).unwrap_err();
+    assert_eq!(err.code, "pac_conflict");
+    assert_eq!(svc.state().active_profile_id.as_deref(), Some("p_default"));
+    assert_eq!(
+        backend.snapshot().auto_config_url.as_deref(),
+        Some("http://pac/external.pac")
+    );
+    assert_eq!(svc.last_pac_url(), Some("http://pac/external.pac"));
+    assert_eq!(backend.writes(), writes);
+
+    let state = svc.switch_profile("p_backup", true).unwrap();
+    assert_eq!(state.state, ProxyState::On);
+    assert_eq!(state.active_profile_id.as_deref(), Some("p_backup"));
+    assert_eq!(backend.snapshot().auto_config_url, None);
+}
+
+#[test]
+fn repair_clear_pac_records_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut initial = baseline();
+    initial.auto_config_url = Some("http://pac/proxy.pac".into());
+    let backend = Arc::new(MemoryBackend::new(initial));
+    let mut svc = service(dir.path(), backend.clone(), persisted_without_preflight());
+
+    let results = svc.run_repair(&["R03".to_string()]);
+    assert!(results[0].ok);
+    assert_eq!(backend.snapshot().auto_config_url, None);
+    assert_eq!(svc.last_pac_url(), Some("http://pac/proxy.pac"));
 }
 
 #[test]
@@ -237,5 +283,4 @@ fn invalid_theme_and_timeouts_are_normalized() {
         .unwrap();
     assert_eq!(state.settings.theme, "system");
     assert_eq!(state.settings.preflight_timeout_ms, 300);
-    assert_eq!(state.settings.periodic_interval_sec, 60);
 }

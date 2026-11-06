@@ -54,9 +54,13 @@ pub async fn disable_proxy(app: AppHandle) -> Result<AppState, CoreError> {
 }
 
 #[tauri::command]
-pub async fn switch_profile(app: AppHandle, profile_id: String) -> Result<AppState, CoreError> {
+pub async fn switch_profile(
+    app: AppHandle,
+    profile_id: String,
+    force: Option<bool>,
+) -> Result<AppState, CoreError> {
     let actor = actor(&app);
-    blocking(move || actor.switch_profile(profile_id)).await
+    blocking(move || actor.switch_profile(profile_id, force.unwrap_or(false))).await
 }
 
 #[tauri::command]
@@ -67,7 +71,7 @@ pub async fn check_health(
 ) -> Result<HealthResult, CoreError> {
     let _ = mode;
     let actor = actor(&app);
-    blocking(move || actor.check_health(force.unwrap_or(true))).await
+    blocking(move || actor.check_health(force.unwrap_or(false))).await
 }
 
 #[tauri::command]

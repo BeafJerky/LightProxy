@@ -24,7 +24,7 @@ pub enum Command {
     Enable { profile_id: String, force: bool },
     Disable,
     Toggle { force: bool },
-    SwitchProfile { profile_id: String },
+    SwitchProfile { profile_id: String, force: bool },
     CheckHealth { force: bool },
     SaveProfile(ProfileInput),
     DeleteProfile { id: String },
@@ -105,6 +105,10 @@ impl<B: ProxyBackend> ProxyService<B> {
         self.read_only
     }
 
+    pub fn last_pac_url(&self) -> Option<&str> {
+        self.persisted.runtime.last_pac_url.as_deref()
+    }
+
     pub fn handle(&mut self, command: Command) -> CoreResult<CommandReply> {
         match command {
             Command::GetState => Ok(CommandReply::State(self.app_state())),
@@ -113,9 +117,9 @@ impl<B: ProxyBackend> ProxyService<B> {
             }
             Command::Disable => self.disable().map(CommandReply::State),
             Command::Toggle { force } => self.toggle(force).map(CommandReply::State),
-            Command::SwitchProfile { profile_id } => {
-                self.switch_profile(&profile_id).map(CommandReply::State)
-            }
+            Command::SwitchProfile { profile_id, force } => self
+                .switch_profile(&profile_id, force)
+                .map(CommandReply::State),
             Command::CheckHealth { force } => self.check_health(force).map(CommandReply::Health),
             Command::SaveProfile(input) => self.save_profile(input).map(CommandReply::State),
             Command::DeleteProfile { id } => self.delete_profile(&id).map(CommandReply::State),
@@ -231,6 +235,7 @@ impl<B: ProxyBackend> ProxyService<B> {
             )
             .with_hint("确认清除 PAC 后可选择强制启用"));
         }
+        self.remember_pac(&current);
 
         if self.persisted.settings.preflight_enabled && !force {
             let result = health::probe(
@@ -338,14 +343,27 @@ impl<B: ProxyBackend> ProxyService<B> {
         self.enable(&profile_id, force)
     }
 
-    pub fn switch_profile(&mut self, profile_id: &str) -> CoreResult<AppState> {
+    pub fn switch_profile(&mut self, profile_id: &str, force: bool) -> CoreResult<AppState> {
         let profile = self.find_profile(profile_id)?.clone();
         if profile.protocol == crate::model::Protocol::Socks5 {
             return Err(CoreError::unsupported_protocol(profile.protocol.as_str()));
         }
         if !self.state.is_active() {
-            return self.enable(profile_id, false);
+            return self.enable(profile_id, force);
         }
+        let previous = self.backend.read()?;
+        if previous.auto_config_url.is_some() && !force {
+            if self.remember_pac(&previous) {
+                self.persist();
+            }
+            return Err(CoreError::new(
+                "pac_conflict",
+                "preflight",
+                "检测到 PAC 自动化脚本，PAC 会优先于固定代理",
+            )
+            .with_hint("确认清除 PAC 后可选择强制切换"));
+        }
+        self.remember_pac(&previous);
         if self.persisted.settings.preflight_enabled {
             let result = health::probe(
                 &profile.host,
@@ -362,7 +380,6 @@ impl<B: ProxyBackend> ProxyService<B> {
                     .with_hint("保持原配置不变"));
             }
         }
-        let previous = self.backend.read()?;
         let target = self.target_for(&profile);
         match self.write_verified(&target) {
             Ok(()) => {
@@ -491,7 +508,7 @@ impl<B: ProxyBackend> ProxyService<B> {
         }
         self.persist();
         if editing_active && self.state.is_active() {
-            return self.switch_profile(&id);
+            return self.switch_profile(&id, false);
         }
         self.emit();
         Ok(self.app_state())
@@ -511,7 +528,7 @@ impl<B: ProxyBackend> ProxyService<B> {
             let fallback = self.persisted.default_profile_id.clone();
             if let Some(fallback) = fallback {
                 if self.state.is_active() {
-                    self.switch_profile(&fallback)?;
+                    self.switch_profile(&fallback, false)?;
                 }
             }
         }
@@ -667,6 +684,7 @@ impl<B: ProxyBackend> ProxyService<B> {
                 message: "没有检测到 PAC，无需处理".into(),
             };
         }
+        self.remember_pac(&current);
         let target = ProxySnapshot {
             auto_config_url: None,
             ..current
@@ -684,6 +702,16 @@ impl<B: ProxyBackend> ProxyService<B> {
                 ok: false,
                 message: err.message,
             },
+        }
+    }
+
+    fn remember_pac(&mut self, current: &ProxySnapshot) -> bool {
+        match &current.auto_config_url {
+            Some(url) if self.persisted.runtime.last_pac_url.as_deref() != Some(url.as_str()) => {
+                self.persisted.runtime.last_pac_url = Some(url.clone());
+                true
+            }
+            _ => false,
         }
     }
 

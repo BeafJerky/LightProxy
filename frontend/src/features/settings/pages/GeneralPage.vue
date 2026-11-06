@@ -7,22 +7,12 @@ import ToggleRow from '@/shared/ui/ToggleRow.vue'
 
 const store = useAppStore()
 const overrideDraft = ref(store.settings.proxyOverride)
-const urlDraft = ref(store.settings.httpCheckUrl)
 const preflightDisabled = computed(() => !store.settings.preflightEnabled)
-const periodicDisabled = computed(() => !store.settings.periodicCheck)
-const httpCheckDisabled = computed(() => !store.settings.httpCheckEnabled)
 
 watch(
   () => store.settings.proxyOverride,
   (value) => {
     overrideDraft.value = value
-  }
-)
-
-watch(
-  () => store.settings.httpCheckUrl,
-  (value) => {
-    urlDraft.value = value
   }
 )
 
@@ -37,11 +27,6 @@ function onSelect(event: Event, key: string) {
 function commitOverride() {
   const value = overrideDraft.value.trim()
   if (value && value !== store.settings.proxyOverride) patch('proxyOverride', value)
-}
-
-function commitUrl() {
-  const value = urlDraft.value.trim()
-  if (value && value !== store.settings.httpCheckUrl) patch('httpCheckUrl', value)
 }
 </script>
 
@@ -60,12 +45,6 @@ function commitUrl() {
         label="开机自启"
         description="登录 Windows 后自动启动 LightProxy 托盘程序。"
         @update:model-value="patch('autostart', $event)"
-      />
-      <ToggleRow
-        :model-value="store.settings.launchHidden"
-        label="启动时隐藏窗口"
-        description="启动后只保留托盘图标，不主动弹出面板。"
-        @update:model-value="patch('launchHidden', $event)"
       />
     </SectionCard>
 
@@ -134,49 +113,6 @@ function commitUrl() {
         description="默认会在退出时恢复接管前的系统代理；开启后则保持当前代理。"
         @update:model-value="patch('keepProxyOnExit', $event)"
       />
-      <ToggleRow
-        :model-value="store.settings.periodicCheck"
-        label="周期性检查"
-        description="按固定间隔检查代理与注册表状态，发现漂移时只提示，不自动覆盖。"
-        @update:model-value="patch('periodicCheck', $event)"
-      />
-      <div class="setting-row">
-        <span class="setting-copy">
-          <strong>检查间隔</strong>
-          <p>仅在开启周期性检查时生效。</p>
-        </span>
-        <span class="inline-control">
-          <select
-            class="select"
-            :value="String(store.settings.periodicIntervalSec)"
-            :disabled="periodicDisabled"
-            @change="patch('periodicIntervalSec', Number(($event.target as HTMLSelectElement).value))"
-          >
-            <option value="60">1 分钟</option>
-            <option value="120">2 分钟</option>
-            <option value="300">5 分钟</option>
-          </select>
-        </span>
-      </div>
-    </SectionCard>
-
-    <SectionCard title="连通性探测" hint="可选">
-      <ToggleRow
-        :model-value="store.settings.httpCheckEnabled"
-        label="HTTP 探测"
-        description="在 TCP 预检之后再请求探测地址，确认代理确实能转发流量。"
-        @update:model-value="patch('httpCheckEnabled', $event)"
-      />
-      <div class="url-row" :class="{ 'is-disabled': httpCheckDisabled }">
-        <span class="url-label">探测地址</span>
-        <n-input
-          v-model:value="urlDraft"
-          size="small"
-          placeholder="http://www.msftconnecttest.com/connecttest.txt"
-          :disabled="httpCheckDisabled"
-          @blur="commitUrl"
-        />
-      </div>
     </SectionCard>
 
     <SectionCard title="绕过代理" hint="ProxyOverride">
@@ -196,23 +132,6 @@ function commitUrl() {
 </template>
 
 <style scoped>
-.url-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 9px 0 4px;
-}
-
-.url-row.is-disabled {
-  opacity: 0.55;
-}
-
-.url-label {
-  flex: none;
-  font-size: 12.5px;
-  color: var(--text-2);
-}
-
 .override-row {
   padding: 4px 0 12px;
 }

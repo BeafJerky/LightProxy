@@ -81,9 +81,14 @@ impl ActorHandle {
         self.state_reply(Command::Toggle { force })
     }
 
-    pub fn switch_profile(&self, profile_id: impl Into<String>) -> CoreResult<AppState> {
+    pub fn switch_profile(
+        &self,
+        profile_id: impl Into<String>,
+        force: bool,
+    ) -> CoreResult<AppState> {
         self.state_reply(Command::SwitchProfile {
             profile_id: profile_id.into(),
+            force,
         })
     }
 

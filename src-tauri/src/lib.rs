@@ -5,7 +5,10 @@ mod tray;
 mod window;
 
 use app_ctx::AppCtx;
-use lightproxy_core::{ActorHandle, ProxyService, StateStore, Watcher, WinInetBackend};
+use lightproxy_core::{
+    restore_from_dir, ActorHandle, ProxyService, RestoreOutcome, StateStore, Watcher,
+    WinInetBackend,
+};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
@@ -13,6 +16,34 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+const APP_DATA_FOLDER: &str = "com.lightproxy.desktop";
+
+/// Runs without initializing Tauri so the NSIS uninstaller can restore the
+/// proxy snapshot after the tray app has already been killed.
+pub fn restore_snapshot_cli() -> i32 {
+    let Some(appdata) = std::env::var_os("APPDATA") else {
+        eprintln!("LightProxy: 找不到 APPDATA，无法定位状态文件");
+        return 1;
+    };
+    let dir = std::path::PathBuf::from(appdata).join(APP_DATA_FOLDER);
+    match restore_from_dir(&WinInetBackend::default(), dir) {
+        Ok(RestoreOutcome::Restored) => {
+            println!("LightProxy: 已恢复接管前的系统代理");
+            0
+        }
+        Ok(RestoreOutcome::AlreadyRestored) => 0,
+        Ok(RestoreOutcome::NoSnapshot) => 0,
+        Ok(RestoreOutcome::NotOwned) => {
+            println!("LightProxy: 系统代理已由其他程序修改，保留当前设置");
+            2
+        }
+        Err(err) => {
+            eprintln!("LightProxy: 恢复系统代理失败：{}", err.message);
+            1
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

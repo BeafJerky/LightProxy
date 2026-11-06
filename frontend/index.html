@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>LightProxy</title>
+    <script>
+      ;(function () {
+        var ids = ['light', 'dark', 'system', 'win11', 'win11-dark', 'terminal', 'paper', 'contrast']
+        var choice = 'system'
+        try {
+          choice = localStorage.getItem('lp.theme') || 'system'
+        } catch (error) {}
+        if (ids.indexOf(choice) < 0) choice = 'system'
+        var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        var theme = choice
+        var pack = 'default'
+        if (choice === 'system') {
+          theme = systemDark ? 'dark' : 'light'
+        } else if (choice === 'win11') {
+          pack = 'win11'
+        } else if (choice === 'win11-dark') {
+          pack = 'win11-dark'
+        } else if (choice === 'terminal') {
+          pack = 'terminal'
+        } else if (choice === 'paper') {
+          pack = 'paper'
+        } else if (choice === 'contrast') {
+          pack = 'contrast'
+        }
+        document.documentElement.dataset.theme = theme
+        document.documentElement.dataset.themePack = pack
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

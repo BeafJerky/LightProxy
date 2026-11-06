@@ -1,0 +1,18 @@
+[package]
+name = "lightproxy-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "LightProxy core: state machine, proxy backend and recovery"
+
+[dependencies]
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows-sys = { version = "0.59", features = ["Win32_Networking_WinInet", "Win32_Foundation"] }
+
+[dev-dependencies]
+tempfile = "3"

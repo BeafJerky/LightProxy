@@ -1,0 +1,164 @@
+use crate::app_ctx::AppCtx;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+use tauri::{
+    AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
+};
+
+const PANEL: (f64, f64) = (360.0, 560.0);
+const SETTINGS: (f64, f64) = (780.0, 640.0);
+
+fn size_for(view: &str) -> (f64, f64) {
+    if view == "settings" {
+        SETTINGS
+    } else {
+        PANEL
+    }
+}
+
+pub fn open(app: &AppHandle, view: &str) -> tauri::Result<()> {
+    let view = if view == "settings" {
+        "settings"
+    } else {
+        "panel"
+    };
+    if let Some(ctx) = app.try_state::<AppCtx>() {
+        ctx.set_current_view(view);
+        ctx.cancel_autohide();
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_size(tauri::LogicalSize::new(size_for(view).0, size_for(view).1))?;
+        position(&window)?;
+        window.show()?;
+        window.set_focus()?;
+        let _ = window.emit("navigate", view);
+        return Ok(());
+    }
+
+    let (width, height) = size_for(view);
+    let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("LightProxy")
+        .inner_size(width, height)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .decorations(false)
+        .skip_taskbar(true)
+        .always_on_top(true)
+        .transparent(true)
+        .visible(false)
+        .shadow(true)
+        .build()?;
+    attach(&window)?;
+    position(&window)?;
+    window.show()?;
+    window.set_focus()?;
+    Ok(())
+}
+
+pub fn set_view(app: &AppHandle, view: &str) -> tauri::Result<()> {
+    let view = if view == "settings" {
+        "settings"
+    } else {
+        "panel"
+    };
+    if let Some(ctx) = app.try_state::<AppCtx>() {
+        ctx.set_current_view(view);
+        ctx.cancel_autohide();
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_size(tauri::LogicalSize::new(size_for(view).0, size_for(view).1))?;
+        let _ = window.emit("navigate", view);
+        window.show()?;
+        window.set_focus()?;
+        Ok(())
+    } else {
+        open(app, view)
+    }
+}
+
+pub fn hide(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide()?;
+        schedule_destroy(app);
+    }
+    Ok(())
+}
+
+pub fn schedule_destroy(app: &AppHandle) {
+    let Some(ctx) = app.try_state::<AppCtx>() else {
+        return;
+    };
+    let generation = ctx.cancel_autohide();
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(300));
+        let Some(ctx) = handle.try_state::<AppCtx>() else {
+            return;
+        };
+        if ctx.autohide_generation.load(Ordering::SeqCst) != generation {
+            return;
+        }
+        if let Some(window) = handle.get_webview_window("main") {
+            if !window.is_visible().unwrap_or(false) {
+                let _ = window.destroy();
+            }
+        }
+    });
+}
+
+fn attach(window: &WebviewWindow) -> tauri::Result<()> {
+    let handle = window.app_handle().clone();
+    let target = window.clone();
+    window.on_window_event(move |event| match event {
+        WindowEvent::Focused(false) => {
+            if let Some(ctx) = handle.try_state::<AppCtx>() {
+                if ctx.current_view() == "panel" {
+                    let _ = target.hide();
+                    schedule_destroy(&handle);
+                }
+            }
+        }
+        WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            let Some(ctx) = handle.try_state::<AppCtx>() else {
+                return;
+            };
+            if ctx.current_view() == "settings" {
+                let exit_on_close = ctx
+                    .actor
+                    .get_state()
+                    .map(|state| state.settings.close_action == "exit")
+                    .unwrap_or(false);
+                if exit_on_close {
+                    crate::tray::quit(&handle);
+                    return;
+                }
+            }
+            let _ = target.hide();
+            schedule_destroy(&handle);
+        }
+        _ => {}
+    });
+    Ok(())
+}
+
+fn position(window: &WebviewWindow) -> tauri::Result<()> {
+    let Some(monitor) = window.current_monitor()? else {
+        return Ok(());
+    };
+    let scale = monitor.scale_factor();
+    let size = window.outer_size()?;
+    let monitor_size = monitor.size();
+    let monitor_pos = monitor.position();
+    let margin = (16.0 * scale) as i32;
+    let taskbar = (56.0 * scale) as i32;
+    let x = monitor_pos.x + monitor_size.width as i32 - size.width as i32 - margin;
+    let y = monitor_pos.y + monitor_size.height as i32 - size.height as i32 - taskbar;
+    window.set_position(PhysicalPosition::new(
+        x.max(monitor_pos.x),
+        y.max(monitor_pos.y),
+    ))?;
+    Ok(())
+}

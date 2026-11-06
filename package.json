@@ -1,0 +1,38 @@
+{
+  "name": "lightproxy",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LightProxy 系统代理快捷开关",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config frontend/vite.config.ts",
+    "build": "vue-tsc --noEmit -p frontend/tsconfig.json && vite build --config frontend/vite.config.ts",
+    "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json",
+    "test": "vitest run --config frontend/vitest.config.ts",
+    "lint": "vue-tsc --noEmit -p frontend/tsconfig.json",
+    "tauri": "tauri",
+    "icons": "node scripts/gen-icons.mjs",
+    "version:check": "node scripts/verify-version.mjs",
+    "version:bump": "node scripts/bump-version.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "naive-ui": "^2.45.3",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.24"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "@types/node": "^24",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.7",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "packageManager": "pnpm@9.12.2"
+}

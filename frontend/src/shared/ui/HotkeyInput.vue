@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
-const props = withDefaults(defineProps<{ modelValue: string; placeholder?: string }>(), {
-  placeholder: '未设置'
-})
+const props = withDefaults(
+  defineProps<{ modelValue: string; placeholder?: string; failed?: boolean }>(),
+  { placeholder: '未设置', failed: false }
+)
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const recording = ref(false)
 const draft = ref('')
 const invalid = ref(false)
+const editBtn = ref<HTMLButtonElement | null>(null)
 
-const display = computed(() => {
-  if (!recording.value) return props.modelValue || props.placeholder
-  return draft.value || '请按下组合键…'
-})
+const keys = computed(() => (props.modelValue ? props.modelValue.split('+') : []))
+const display = computed(() => draft.value || '按下组合键…')
 
 const MODIFIERS = new Set(['Control', 'Alt', 'Shift', 'Meta'])
 
@@ -35,15 +35,30 @@ const KEY_NAMES: Record<string, string> = {
   PageDown: 'PageDown'
 }
 
-function start() {
+async function start() {
   recording.value = true
   draft.value = ''
   invalid.value = false
+  await nextTick()
+  editBtn.value?.focus()
 }
 
 function stop() {
   recording.value = false
   draft.value = ''
+  invalid.value = false
+}
+
+function toggle() {
+  if (recording.value) stop()
+  else void start()
+}
+
+function onFocusOut(event: FocusEvent) {
+  const next = event.relatedTarget as Node | null
+  const root = event.currentTarget as HTMLElement
+  if (recording.value && next && root.contains(next)) return
+  if (recording.value) stop()
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -89,63 +104,98 @@ function onKeydown(event: KeyboardEvent) {
   emit('update:modelValue', combo)
   stop()
 }
+
+defineExpose({ start })
 </script>
 
 <template>
-  <button
-    type="button"
-    class="hotkey-field"
-    :class="{ 'is-recording': recording, 'is-invalid': invalid }"
-    @click="start"
+  <div
+    class="key-capture"
+    :class="{ 'is-recording': recording, 'has-failure': failed }"
     @keydown="onKeydown"
-    @blur="stop"
+    @focusout="onFocusOut"
   >
-    <span class="hotkey-value">{{ display }}</span>
-    <span class="hotkey-hint">{{ recording ? (invalid ? '需要包含 Ctrl / Alt / Shift / Win' : 'Esc 取消') : '点击录制' }}</span>
-  </button>
+    <template v-if="recording">
+      <span class="capture-hint" :class="{ 'is-invalid': invalid }">
+        {{ invalid ? '需要包含 Ctrl / Alt / Shift / Win' : display }}
+      </span>
+    </template>
+    <template v-else>
+      <template v-if="keys.length">
+        <template v-for="(part, index) in keys" :key="`${part}-${index}`">
+          <span v-if="index > 0" class="key-plus">+</span>
+          <kbd>{{ part }}</kbd>
+        </template>
+      </template>
+      <span v-else class="key-empty">{{ placeholder }}</span>
+      <span v-if="failed" class="key-state">未生效</span>
+    </template>
+    <button ref="editBtn" class="mini-btn" type="button" @click.stop="toggle">
+      {{ recording ? '取消' : '修改' }}
+    </button>
+  </div>
 </template>
 
 <style scoped>
-.hotkey-field {
-  min-width: 164px;
+.key-capture {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius-sm);
+  justify-content: flex-end;
+  gap: 4px;
+  flex: none;
+  min-width: 168px;
+}
+
+kbd {
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
   background: var(--surface-2);
-  color: var(--text);
-  text-align: left;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 3px 7px;
 }
 
-.hotkey-field:hover {
-  border-color: var(--accent);
+.key-plus {
+  font-size: 9px;
+  color: var(--muted);
 }
 
-.hotkey-field.is-recording {
-  border-color: var(--accent);
+.key-empty {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.key-state {
+  font-size: 9.5px;
+  color: var(--danger);
+}
+
+.capture-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.capture-hint.is-invalid {
+  color: var(--danger);
+}
+
+.key-capture.is-recording {
+  border-radius: 7px;
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.hotkey-field.is-invalid {
+.key-capture.has-failure kbd {
   border-color: var(--danger);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
-.hotkey-value {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.hotkey-hint {
-  font-size: 10px;
-  color: var(--muted);
-  white-space: nowrap;
+.mini-btn {
+  height: 26px;
+  margin-left: 6px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 </style>

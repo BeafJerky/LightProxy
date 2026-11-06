@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
-import { APP_VERSION } from '@/shared/version'
+import { APP_STAGE, APP_VERSION, APP_VERSION_LABEL } from '@/shared/version'
 import Icon from '@/shared/ui/Icon.vue'
 import SectionCard from '@/shared/ui/SectionCard.vue'
 
@@ -29,7 +29,7 @@ async function openLogs() {
         <div class="brand-copy">
           <div class="brand-name">
             <strong>LightProxy</strong>
-            <span class="version">v{{ APP_VERSION }}</span>
+            <span class="version">{{ APP_VERSION_LABEL }}</span>
           </div>
           <p>多套代理快速切换、状态检查与异常修复。只接管 Windows 当前用户的系统代理设置。</p>
         </div>
@@ -41,6 +41,18 @@ async function openLogs() {
       <div class="info-row"><span>外壳</span><strong>Tauri 2 · Rust</strong></div>
       <div class="info-row"><span>界面</span><strong>Vue 3 · Naive UI</strong></div>
       <div class="info-row"><span>版本</span><strong class="mono">{{ APP_VERSION }}</strong></div>
+      <div class="info-row"><span>发布阶段</span><strong>{{ APP_STAGE }}（0.x）</strong></div>
+    </SectionCard>
+
+    <SectionCard title="测试版说明">
+      <div class="note-row">
+        <strong>当前为 0.x 测试版</strong>
+        <p>功能、界面与数据格式可能继续调整，暂不承诺向后兼容，也不提供自动更新。</p>
+      </div>
+      <div class="note-row">
+        <strong>反馈问题</strong>
+        <p>请附上运行日志或诊断导出，便于定位问题。</p>
+      </div>
     </SectionCard>
 
     <SectionCard title="接管范围">

@@ -2072,7 +2072,7 @@ dependencies = [
 
 [[package]]
 name = "lightproxy"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "lightproxy-core",
  "log",
@@ -2088,7 +2088,7 @@ dependencies = [
 
 [[package]]
 name = "lightproxy-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "log",
  "serde",

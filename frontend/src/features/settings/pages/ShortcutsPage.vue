@@ -1,22 +1,73 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { DEFAULT_SETTINGS } from '@/shared/api/defaults'
+import type { Settings } from '@/shared/api/types'
 import SectionCard from '@/shared/ui/SectionCard.vue'
 import HotkeyInput from '@/shared/ui/HotkeyInput.vue'
+import Icon from '@/shared/ui/Icon.vue'
+
+type HotkeyKey = keyof Settings['hotkeys']
+
+interface HotkeyRow {
+  key: HotkeyKey
+  title: string
+  desc: string
+}
+
+const rows: HotkeyRow[] = [
+  { key: 'toggle', title: '开关代理', desc: '快路径，目标 p95 < 50ms。' },
+  { key: 'panel', title: '打开 / 聚焦面板', desc: '冷启动约 300–500ms，热启动 < 150ms。' },
+  { key: 'nextProfile', title: '切换到下一套配置', desc: '已启用时直接切换，不经历关闭再开启。' }
+]
 
 const store = useAppStore()
 const message = useMessage()
 
-async function setHotkey(key: 'toggle' | 'panel' | 'nextProfile', value: string) {
+const fieldRefs: Partial<Record<HotkeyKey, InstanceType<typeof HotkeyInput>>> = {}
+
+function bindField(key: HotkeyKey, el: unknown) {
+  if (el) fieldRefs[key] = el as InstanceType<typeof HotkeyInput>
+  else delete fieldRefs[key]
+}
+
+const failure = computed(() => store.diagnostics.find((item) => item.id === 'R07') ?? null)
+const failedSpecs = computed(() => {
+  if (!failure.value) return new Set<string>()
+  return new Set(
+    failure.value.detail
+      .split('；')
+      .map((item) => item.split('：')[0]?.trim())
+      .filter(Boolean)
+  )
+})
+const firstFailed = computed(
+  () => rows.find((row) => failedSpecs.value.has(store.settings.hotkeys[row.key])) ?? null
+)
+
+onMounted(() => {
+  void store.loadDiagnostics()
+})
+
+async function setHotkey(key: HotkeyKey, value: string) {
   if (!value || value === store.settings.hotkeys[key]) return
   const ok = await store.updateHotkeys({ [key]: value })
-  if (ok) message.success('快捷键已更新')
+  if (!ok) return
+  await store.loadDiagnostics()
+  if (failedSpecs.value.has(value)) message.warning('快捷键已保存，但注册失败，请换一个组合')
+  else message.success('快捷键已更新')
 }
 
 async function resetAll() {
   const ok = await store.updateHotkeys({ ...DEFAULT_SETTINGS.hotkeys })
-  if (ok) message.success('已恢复默认快捷键')
+  if (!ok) return
+  await store.loadDiagnostics()
+  message.success('已恢复默认快捷键')
+}
+
+function retryFailed() {
+  if (firstFailed.value) fieldRefs[firstFailed.value.key]?.start()
 }
 </script>
 
@@ -25,82 +76,99 @@ async function resetAll() {
     <div class="page-head">
       <div>
         <h1>快捷键</h1>
-        <p>快捷键全局生效，窗口隐藏时也能操作。</p>
+        <p>全局生效，窗口未打开时也可用。</p>
       </div>
       <div class="page-head-actions">
         <button class="mini-btn" type="button" @click="resetAll">恢复默认</button>
       </div>
     </div>
 
-    <SectionCard title="全局快捷键" hint="点击后按下组合键">
-      <div class="setting-row">
-        <span class="setting-copy">
-          <strong>开关代理</strong>
-          <p>有使用中配置时直接关闭，否则启用默认配置。</p>
-        </span>
+    <SectionCard>
+      <div v-for="row in rows" :key="row.key" class="hotkey-row">
+        <div class="setting-copy">
+          <strong>{{ row.title }}</strong>
+          <p>{{ row.desc }}</p>
+        </div>
         <HotkeyInput
-          :model-value="store.settings.hotkeys.toggle"
-          @update:model-value="setHotkey('toggle', $event)"
-        />
-      </div>
-      <div class="setting-row">
-        <span class="setting-copy">
-          <strong>打开快捷面板</strong>
-          <p>在屏幕右下角打开面板并聚焦。</p>
-        </span>
-        <HotkeyInput
-          :model-value="store.settings.hotkeys.panel"
-          @update:model-value="setHotkey('panel', $event)"
-        />
-      </div>
-      <div class="setting-row">
-        <span class="setting-copy">
-          <strong>切换下一套配置</strong>
-          <p>按配置列表顺序循环切换，开启状态下直接换地址。</p>
-        </span>
-        <HotkeyInput
-          :model-value="store.settings.hotkeys.nextProfile"
-          @update:model-value="setHotkey('nextProfile', $event)"
+          :ref="(el) => bindField(row.key, el)"
+          :model-value="store.settings.hotkeys[row.key]"
+          :failed="failedSpecs.has(store.settings.hotkeys[row.key])"
+          @update:model-value="setHotkey(row.key, $event)"
         />
       </div>
     </SectionCard>
 
-    <SectionCard title="使用提示">
-      <div class="tip-row">
-        <strong>组合键至少包含一个修饰键</strong>
-        <p>支持 Ctrl、Alt、Shift、Win 与字母、数字、F1–F12、方向键等。</p>
+    <div v-if="failure" class="notice warn" role="alert">
+      <Icon name="alert" :size="16" />
+      <div>
+        <strong>快捷键未生效</strong>
+        <p>{{ failure.detail }}。请换一个组合重新录入，不会静默失效。</p>
       </div>
-      <div class="tip-row">
-        <strong>冲突处理</strong>
-        <p>若组合被其他程序占用，注册会失败；在诊断页可以看到具体冲突项。</p>
-      </div>
-      <div class="tip-row">
-        <strong>保存方式</strong>
-        <p>录制完成即保存并重新注册，不需要额外确认。</p>
-      </div>
-    </SectionCard>
+      <button v-if="firstFailed" class="mini-btn" type="button" @click="retryFailed">
+        重新录入
+      </button>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.tip-row {
-  padding: 8px 0;
+.hotkey-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
   border-bottom: 1px solid var(--border);
 }
 
-.tip-row:last-child {
+.hotkey-row:last-child {
   border-bottom: 0;
 }
 
-.tip-row strong {
-  display: block;
-  font-size: 12.5px;
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11.5px;
 }
 
-.tip-row p {
-  margin: 3px 0 0;
-  font-size: 11.5px;
-  line-height: 1.55;
+.notice :deep(svg) {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 1px;
+}
+
+.notice strong {
+  display: block;
+  font-size: 12px;
+}
+
+.notice p {
+  margin: 2px 0 0;
   color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.notice.warn {
+  background: var(--warn-soft);
+  border-color: color-mix(in srgb, var(--warn) 26%, var(--border));
+  color: var(--warn);
+}
+
+.notice.warn p {
+  color: var(--text-2);
+}
+
+.notice .mini-btn {
+  margin-left: auto;
+  flex: none;
 }
 </style>

@@ -1,5 +1,7 @@
 # LightProxy
 
+> 当前为 **0.x 测试版**（v0.1.1）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
+
 Windows 托盘上的系统代理快捷开关。基于 Tauri 2 + Rust + Vue 3 + Naive UI，单实例常驻，面板 360×560，设置页 780×640。
 
 ## 能力
@@ -74,7 +76,16 @@ pnpm tauri build
 
 产物为按用户安装的 NSIS 安装包，位于 `target/release/bundle/nsis/`。图标由 `scripts/gen-icons.mjs` 生成。
 
-## 版本号
+## 版本与发布
+
+当前处于 0.x 测试版，用户可见位置统一写作 `v0.1.1 · 测试版`。
+
+- `MINOR`：新增功能、行为调整、配置或持久化结构的不兼容变更。
+- `PATCH`：兼容缺陷修复、文案调整、依赖补丁、性能优化。
+- `MAJOR`：仅用于 1.0.0 阶段切换，不用于 0.x 常规迭代。
+- 0.x 的 GitHub Release 一律标记为 pre-release，标签仍为 `vX.Y.Z`。
+- 已发布版本不复用；发布后任何改动至少升 `PATCH`。未发布开发版本可以覆盖。
+- 暂不提供自动更新，升级需手动安装新版本。
 
 版本号共 5 处，必须一致：
 
@@ -88,6 +99,8 @@ pnpm tauri build
 node scripts/bump-version.mjs patch    # 或 minor / major，或显式版本如 0.2.0
 node scripts/verify-version.mjs
 ```
+
+完整发布流程（含真机冒烟、NSIS 校验和、pre-release、授权要求）见 [VERSIONING.md](./VERSIONING.md)。
 
 ## 数据位置
 

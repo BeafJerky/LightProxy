@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAppStore } from '@/stores/app'
-import { APP_VERSION } from '@/shared/version'
+import { APP_VERSION_LABEL } from '@/shared/version'
 import type { SettingsPage } from '@/shared/api/types'
 import Icon from '@/shared/ui/Icon.vue'
 import type { IconName } from '@/shared/ui/icons'
@@ -80,7 +80,10 @@ function close() {
           <Icon :name="item.icon" :size="16" />
           <span>{{ item.label }}</span>
         </button>
-        <div class="nav-foot">v{{ APP_VERSION }} · Windows 10 / 11</div>
+        <div class="nav-foot">
+          <span>{{ APP_VERSION_LABEL }}</span>
+          <span>Windows 10 / 11</span>
+        </div>
       </nav>
 
       <main class="settings-content">
@@ -213,7 +216,11 @@ function close() {
 .nav-foot {
   margin-top: auto;
   padding: 8px 10px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 10px;
+  line-height: 1.5;
   color: var(--muted);
 }
 

@@ -27,18 +27,18 @@ export interface ThemeMeta {
 }
 
 export const THEME_META: Record<ThemeId, ThemeMeta> = {
-  light: { id: 'light', label: '明亮', description: '中性浅色，适合白天使用', theme: 'light', pack: 'default' },
-  dark: { id: 'dark', label: '深色', description: '低亮度深色，夜间不刺眼', theme: 'dark', pack: 'default' },
-  system: { id: 'system', label: '跟随系统', description: '随 Windows 明暗模式自动切换', theme: 'auto', pack: 'default' },
-  win11: { id: 'win11', label: 'WIN11 云母', description: 'Fluent 质感与方角控件', theme: 'light', pack: 'win11' },
+  light: { id: 'light', label: '浅色', description: '冷灰底 · 蓝色强调', theme: 'light', pack: 'default' },
+  dark: { id: 'dark', label: '深色', description: '低亮度 · 蓝色强调', theme: 'dark', pack: 'default' },
+  system: { id: 'system', label: '跟随系统', description: '只解析默认浅 / 深', theme: 'auto', pack: 'default' },
+  win11: { id: 'win11', label: 'WIN11 云母', description: 'Fluent 浅色 · 原生质感', theme: 'light', pack: 'win11' },
   'win11-dark': {
     id: 'win11-dark',
     label: 'WIN11 云母（深）',
-    description: '深色云母，贴合系统深色', theme: 'dark', pack: 'win11-dark'
+    description: 'Fluent 深色 · 青色强调', theme: 'dark', pack: 'win11-dark'
   },
-  terminal: { id: 'terminal', label: '终端', description: '深色网格与等宽强调', theme: 'dark', pack: 'terminal' },
-  paper: { id: 'paper', label: '纸张', description: '暖白纸面与衬线标题', theme: 'light', pack: 'paper' },
-  contrast: { id: 'contrast', label: '高对比', description: '纯黑底与高亮黄，弱视友好', theme: 'dark', pack: 'contrast' }
+  terminal: { id: 'terminal', label: '机房终端', description: '深空青 · 等宽数字', theme: 'dark', pack: 'terminal' },
+  paper: { id: 'paper', label: '纸墨', description: '暖纸 · 赭石强调', theme: 'light', pack: 'paper' },
+  contrast: { id: 'contrast', label: '高对比', description: '纯黑底 · 黄色强调', theme: 'dark', pack: 'contrast' }
 }
 
 export const THEME_ORDER: ThemeId[] = [...THEME_IDS]

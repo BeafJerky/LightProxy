@@ -4,7 +4,7 @@ import { useMessage } from 'naive-ui'
 import Icon from '@/shared/ui/Icon.vue'
 import StatusCard from '@/features/status/StatusCard.vue'
 import { canActivate, profileServer, useAppStore } from '@/stores/app'
-import { APP_VERSION } from '@/shared/version'
+import { APP_VERSION_LABEL } from '@/shared/version'
 import type { Profile } from '@/shared/api/types'
 
 const store = useAppStore()
@@ -169,7 +169,7 @@ function openRepair() {
 
     <div class="panel-foot">
       <span class="hotkey-hint"><kbd>{{ hotkeyLabel }}</kbd> 开关</span>
-      <span>v{{ APP_VERSION }}</span>
+      <span>{{ APP_VERSION_LABEL }}</span>
     </div>
   </div>
 </template>

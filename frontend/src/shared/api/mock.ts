@@ -67,16 +67,22 @@ function updateFailEnabled(): boolean {
   }
 }
 
+function nextPatch(version: string): string {
+  const [major, minor, patch] = version.split('.').map(Number)
+  return `${major}.${minor}.${patch + 1}`
+}
+
 function mockUpdateCheck(): UpdateCheck {
   if (updateFailEnabled()) {
     error('update_check_failed', '检查更新失败：模拟网络不可用', '检查网络或代理后重试')
   }
+  const latestVersion = nextPatch(APP_VERSION)
   return {
     currentVersion: APP_VERSION,
-    latestVersion: '0.1.4',
+    latestVersion,
     available: true,
-    releaseUrl: 'https://github.com/BeafJerky/LightProxy/releases/tag/v0.1.4',
-    assetName: 'LightProxy_0.1.4_x64-setup.exe',
+    releaseUrl: `https://github.com/BeafJerky/LightProxy/releases/tag/v${latestVersion}`,
+    assetName: `LightProxy_${latestVersion}_x64-setup.exe`,
     source: '直连',
     checkedAtMs: nowMs()
   }

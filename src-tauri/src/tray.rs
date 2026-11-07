@@ -37,7 +37,7 @@ fn current_server(state: &AppState) -> Option<String> {
         .profiles
         .iter()
         .find(|profile| profile.id == id)
-        .map(|profile| profile.server())
+        .map(|profile| profile.endpoint())
 }
 
 fn tooltip(state: &AppState) -> String {
@@ -72,7 +72,7 @@ pub fn build_menu(app: &AppHandle, state: &AppState) -> tauri::Result<Menu<Wry>>
     for profile in state.profiles.iter().take(8) {
         let checked = active && state.active_profile_id.as_deref() == Some(profile.id.as_str());
         let marker = if checked { "●" } else { "○" };
-        let label = format!("{marker} {}  {}", profile.name, profile.server());
+        let label = format!("{marker} {}  {}", profile.name, profile.endpoint());
         let item = MenuItem::with_id(
             app,
             format!("profile:{}", profile.id),
@@ -194,4 +194,33 @@ pub fn quit(app: &AppHandle) {
         }
     }
     app.exit(0);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lightproxy_core::{Desired, Profile, Protocol, Settings};
+
+    #[test]
+    fn status_text_shows_socks5_endpoint_without_registry_prefix() {
+        let state = AppState {
+            state: ProxyState::On,
+            desired: Desired::On,
+            active_profile_id: Some("p1".into()),
+            last_health: None,
+            message: None,
+            profiles: vec![Profile {
+                id: "p1".into(),
+                name: "SOCKS".into(),
+                protocol: Protocol::Socks5,
+                host: "192.168.5.4".into(),
+                port: 1080,
+            }],
+            default_profile_id: None,
+            settings: Settings::default(),
+            snapshot: None,
+        };
+
+        assert_eq!(status_text(&state), "代理已开启 · 192.168.5.4:1080");
+    }
 }

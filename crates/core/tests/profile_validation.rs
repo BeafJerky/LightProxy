@@ -69,3 +69,15 @@ fn socks5_server_uses_socks_protocol_entry() {
     item.host = "::1".into();
     assert_eq!(item.server(), "socks=[::1]:1080");
 }
+
+#[test]
+fn socks5_endpoint_hides_registry_prefix() {
+    let mut item = profile("p8", "SOCKS", "192.168.5.4", 1080);
+    item.protocol = Protocol::Socks5;
+    assert_eq!(item.endpoint(), "192.168.5.4:1080");
+    assert_eq!(item.display_url(), "socks5://192.168.5.4:1080");
+
+    item.host = "::1".into();
+    assert_eq!(item.endpoint(), "[::1]:1080");
+    assert_eq!(item.display_url(), "socks5://[::1]:1080");
+}

@@ -159,7 +159,7 @@ fn active_proxy(state: &AppState) -> Option<ProxySource> {
     if profile.protocol == Protocol::Socks5 {
         return None;
     }
-    let display = profile.server();
+    let display = profile.endpoint();
     Some(ProxySource {
         url: format!("http://{display}"),
         display,

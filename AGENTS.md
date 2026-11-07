@@ -4,7 +4,7 @@ LightProxy：Windows 系统代理托盘开关。Tauri 2 + Rust workspace + Vue 3
 
 ## 阶段与版本
 
-- 项目处于 0.x 测试版。用户可见文案统一为 `v0.1.4 · 测试版`，禁止出现“稳定版”“正式版”。
+- 项目处于 0.x 测试版。用户可见文案统一为 `v<版本> · 测试版`（如 `v0.2.1 · 测试版`），禁止出现“稳定版”“正式版”。
 - 0.x 用 `MINOR` 承载新增功能、行为调整与不兼容变更；`PATCH` 用于兼容修复；`MAJOR` 只用于 1.0.0 阶段切换。
 - 0.x 的 GitHub Release 一律标记 pre-release，标签为 `vX.Y.Z`；已发布版本不复用。
 - 版本号只用 `pnpm version:bump <patch|minor|major|x.y.z>` 修改，改后执行 `pnpm version:check`。

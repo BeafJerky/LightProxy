@@ -207,9 +207,6 @@ impl<B: ProxyBackend> ProxyService<B> {
 
     pub fn enable(&mut self, profile_id: &str, force: bool) -> CoreResult<AppState> {
         let profile = self.find_profile(profile_id)?.clone();
-        if profile.protocol == crate::model::Protocol::Socks5 {
-            return Err(CoreError::unsupported_protocol(profile.protocol.as_str()));
-        }
         let current = self.backend.read()?;
         let target = self.target_for(&profile);
 
@@ -345,9 +342,6 @@ impl<B: ProxyBackend> ProxyService<B> {
 
     pub fn switch_profile(&mut self, profile_id: &str, force: bool) -> CoreResult<AppState> {
         let profile = self.find_profile(profile_id)?.clone();
-        if profile.protocol == crate::model::Protocol::Socks5 {
-            return Err(CoreError::unsupported_protocol(profile.protocol.as_str()));
-        }
         if !self.state.is_active() {
             return self.enable(profile_id, force);
         }

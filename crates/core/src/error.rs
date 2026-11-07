@@ -34,15 +34,6 @@ impl CoreError {
         Self::new("profile_not_found", "validate", format!("配置不存在：{id}"))
             .with_hint("刷新配置列表后重试")
     }
-
-    pub fn unsupported_protocol(protocol: &str) -> Self {
-        Self::new(
-            "unsupported_protocol",
-            "validate",
-            format!("V1 不支持将 {protocol} 写入系统代理"),
-        )
-        .with_hint("请改用 http 或 https 配置")
-    }
 }
 
 impl fmt::Display for CoreError {

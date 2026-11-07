@@ -24,7 +24,7 @@ const draft = reactive({
 const protocolOptions = [
   { label: 'HTTP', value: 'http' },
   { label: 'HTTPS', value: 'https' },
-  { label: 'SOCKS5（仅保存）', value: 'socks5' }
+  { label: 'SOCKS5', value: 'socks5' }
 ]
 
 function reset() {
@@ -123,10 +123,6 @@ async function submit() {
         </label>
       </div>
 
-      <p v-if="draft.protocol === 'socks5'" class="socks-hint">
-        SOCKS5 配置当前只保存，不写入系统代理；后续版本会支持。
-      </p>
-
       <footer class="modal-foot">
         <n-button quaternary @click="show = false">取消</n-button>
         <n-button type="primary" :loading="saving" @click="submit">保存</n-button>
@@ -186,16 +182,6 @@ async function submit() {
   font-style: normal;
   font-size: 10.5px;
   color: var(--danger);
-}
-
-.socks-hint {
-  margin: 12px 0 0;
-  padding: 7px 9px;
-  border-radius: var(--radius-sm);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 11px;
-  line-height: 1.5;
 }
 
 .modal-foot {

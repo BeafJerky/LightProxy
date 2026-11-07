@@ -44,7 +44,7 @@ describe('validateProfileDraft', () => {
     expect(validateProfileDraft(draft({ port: null }), existing).port).toBeTruthy()
   })
 
-  it('accepts IPv6 hosts and socks5 save-only profiles', () => {
+  it('accepts IPv6 hosts and socks5 profiles', () => {
     expect(hasErrors(validateProfileDraft(draft({ host: 'fd00::4', protocol: 'socks5' }), existing))).toBe(false)
   })
 

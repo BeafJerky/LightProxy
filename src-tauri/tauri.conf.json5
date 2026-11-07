@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "LightProxy",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "identifier": "com.lightproxy.desktop",
   "build": {
     "frontendDist": "../frontend/dist",

@@ -1,5 +1,5 @@
 use lightproxy_core::backend::MemoryBackend;
-use lightproxy_core::model::{PersistedState, ProxySnapshot, ProxyState};
+use lightproxy_core::model::{PersistedState, Profile, Protocol, ProxySnapshot, ProxyState};
 use lightproxy_core::recovery::{decide_recovery, RecoveryDecision};
 use lightproxy_core::service::ProxyService;
 use lightproxy_core::store::StateStore;
@@ -23,6 +23,28 @@ fn crashed_with_reachable_known_proxy_restores_on() {
         decision,
         RecoveryDecision::On {
             profile_id: "p_default".into(),
+            fill_snapshot: true
+        }
+    );
+}
+
+#[test]
+fn crashed_with_socks5_proxy_matches_socks_profile() {
+    let mut persisted = PersistedState::initial();
+    persisted.profiles.push(Profile {
+        id: "p_socks".into(),
+        name: "SOCKS 代理".into(),
+        protocol: Protocol::Socks5,
+        host: "192.168.5.4".into(),
+        port: 1080,
+    });
+    let mut registry = saved_proxy();
+    registry.proxy_server = "socks=192.168.5.4:1080".into();
+    let decision = decide_recovery(false, &registry, &persisted, Some(true));
+    assert_eq!(
+        decision,
+        RecoveryDecision::On {
+            profile_id: "p_socks".into(),
             fill_snapshot: true
         }
     );

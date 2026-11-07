@@ -54,11 +54,17 @@ pub struct Profile {
 
 impl Profile {
     /// The value written to `ProxyServer`; IPv6 literals keep their brackets.
+    /// SOCKS5 uses the per-protocol `socks=` entry so HTTP clients are not
+    /// pointed at a SOCKS port.
     pub fn server(&self) -> String {
-        if self.host.contains(':') {
-            format!("[{}]:{}", self.host, self.port)
+        let host = if self.host.contains(':') {
+            format!("[{}]", self.host)
         } else {
-            format!("{}:{}", self.host, self.port)
+            self.host.clone()
+        };
+        match self.protocol {
+            Protocol::Socks5 => format!("socks={}:{}", host, self.port),
+            _ => format!("{}:{}", host, self.port),
         }
     }
 

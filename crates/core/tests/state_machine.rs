@@ -1,6 +1,6 @@
 use lightproxy_core::actor::ActorHandle;
 use lightproxy_core::backend::{MemoryBackend, ProxyBackend};
-use lightproxy_core::model::{PersistedState, ProxySnapshot, ProxyState};
+use lightproxy_core::model::{PersistedState, Profile, Protocol, ProxySnapshot, ProxyState};
 use lightproxy_core::service::ProxyService;
 use lightproxy_core::store::StateStore;
 use std::sync::Arc;
@@ -85,6 +85,49 @@ fn switch_profile_stays_on_without_extra_disable_write() {
     assert_eq!(state.active_profile_id.as_deref(), Some("p_backup"));
     assert_eq!(backend.writes(), 2);
     assert_eq!(backend.snapshot().proxy_server, "192.168.5.9:7890");
+}
+
+fn with_socks5_profile() -> PersistedState {
+    let mut persisted = persisted_without_preflight();
+    persisted.profiles.push(Profile {
+        id: "p_socks".into(),
+        name: "SOCKS 代理".into(),
+        protocol: Protocol::Socks5,
+        host: "192.168.5.4".into(),
+        port: 1080,
+    });
+    persisted
+}
+
+#[test]
+fn enable_socks5_writes_socks_entry_and_disable_restores() {
+    let dir = tempfile::tempdir().unwrap();
+    let backend = Arc::new(MemoryBackend::new(baseline()));
+    let mut svc = service(dir.path(), backend.clone(), with_socks5_profile());
+
+    let state = svc.enable("p_socks", true).unwrap();
+    assert_eq!(state.state, ProxyState::On);
+    assert_eq!(state.active_profile_id.as_deref(), Some("p_socks"));
+    assert_eq!(backend.snapshot().proxy_server, "socks=192.168.5.4:1080");
+    assert!(backend.snapshot().proxy_enable);
+
+    let off = svc.disable().unwrap();
+    assert_eq!(off.state, ProxyState::Off);
+    assert_eq!(backend.snapshot(), baseline());
+}
+
+#[test]
+fn switch_from_http_to_socks5_rewrites_server() {
+    let dir = tempfile::tempdir().unwrap();
+    let backend = Arc::new(MemoryBackend::new(baseline()));
+    let mut svc = service(dir.path(), backend.clone(), with_socks5_profile());
+
+    svc.enable("p_default", true).unwrap();
+    let state = svc.switch_profile("p_socks", false).unwrap();
+    assert_eq!(state.state, ProxyState::On);
+    assert_eq!(state.active_profile_id.as_deref(), Some("p_socks"));
+    assert_eq!(backend.snapshot().proxy_server, "socks=192.168.5.4:1080");
+    assert_eq!(backend.writes(), 2);
 }
 
 #[test]

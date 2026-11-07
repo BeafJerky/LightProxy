@@ -122,9 +122,6 @@ const isActive = () => state.state === 'on' || state.state === 'degraded'
 
 function requireActivatable(profile: Profile | undefined): Profile {
   if (!profile) error('E_PROFILE_NOT_FOUND', '配置不存在')
-  if (profile.protocol === 'socks5') {
-    error('E_UNSUPPORTED_PROTOCOL', 'socks5 配置当前仅保存，暂不支持启用')
-  }
   return profile
 }
 

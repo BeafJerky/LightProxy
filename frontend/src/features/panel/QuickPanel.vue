@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useMessage } from 'naive-ui'
 import Icon from '@/shared/ui/Icon.vue'
 import StatusCard from '@/features/status/StatusCard.vue'
-import { canActivate, profileServer, useAppStore } from '@/stores/app'
+import { profileServer, useAppStore } from '@/stores/app'
 import { APP_VERSION_LABEL } from '@/shared/version'
 import type { Profile } from '@/shared/api/types'
 
@@ -36,10 +36,6 @@ async function heroAction() {
 }
 
 async function selectProfile(profile: Profile) {
-  if (!canActivate(profile)) {
-    message.warning('socks5 配置当前仅保存，暂不支持启用')
-    return
-  }
   if (profile.id === store.state?.activeProfileId) return
   pendingForce.value = null
   const ok = await store.switchProfile(profile.id)
@@ -146,9 +142,9 @@ function openRepair() {
         v-for="profile in store.profiles"
         :key="profile.id"
         class="profile-row"
-        :class="{ 'is-active': profile.id === store.state?.activeProfileId, 'is-disabled': !canActivate(profile) }"
+        :class="{ 'is-active': profile.id === store.state?.activeProfileId }"
         type="button"
-        :title="canActivate(profile) ? profileServer(profile) : 'socks5 配置仅保存'"
+        :title="profileServer(profile)"
         @click="selectProfile(profile)"
       >
         <span class="radio" />
@@ -157,7 +153,6 @@ function openRepair() {
           <span>{{ profileServer(profile) }}</span>
         </span>
         <span v-if="profile.id === store.state?.activeProfileId" class="badge">使用中</span>
-        <span v-else-if="!canActivate(profile)" class="badge subtle">仅保存</span>
         <span v-else-if="profile.id === store.state?.defaultProfileId" class="badge subtle">默认</span>
       </button>
       <p v-if="store.profiles.length === 0" class="empty-hint">还没有配置，去设置里添加一套。</p>
@@ -464,10 +459,6 @@ function openRepair() {
 
 .profile-row:hover {
   background: var(--surface-2);
-}
-
-.profile-row.is-disabled {
-  opacity: 0.62;
 }
 
 .profile-row.is-active {

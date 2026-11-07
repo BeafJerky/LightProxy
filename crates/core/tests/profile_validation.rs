@@ -59,3 +59,13 @@ fn formats_ipv6_server_with_brackets() {
         "10.0.0.2:8080"
     );
 }
+
+#[test]
+fn socks5_server_uses_socks_protocol_entry() {
+    let mut item = profile("p7", "SOCKS", "10.0.0.2", 1080);
+    item.protocol = Protocol::Socks5;
+    assert_eq!(item.server(), "socks=10.0.0.2:1080");
+
+    item.host = "::1".into();
+    assert_eq!(item.server(), "socks=[::1]:1080");
+}

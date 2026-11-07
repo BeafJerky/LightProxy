@@ -30,10 +30,6 @@ export function profileUrl(profile: Profile): string {
   return `${profile.protocol}://${profileServer(profile)}`
 }
 
-export function canActivate(profile: Profile): boolean {
-  return profile.protocol !== 'socks5'
-}
-
 export const useAppStore = defineStore('app', () => {
   const state = ref<AppState | null>(null)
   const view = ref<View>('panel')

@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-07
+
+### Added
+
+- SOCKS5 配置支持启用与切换：以 `socks=host:port` 协议条目写入 WinINET 系统代理，HTTP / HTTPS 客户端不会误走 SOCKS 端口；崩溃恢复与卸载恢复同样识别 SOCKS5 配置。
+
 ## [0.1.4] - 2026-11-07
 
 ### Fixed

@@ -70,7 +70,6 @@ function remove(profile: Profile) {
             <strong>{{ profile.name }}</strong>
             <span v-if="profile.id === store.state?.defaultProfileId" class="chip">默认</span>
             <span v-if="profile.id === store.state?.activeProfileId" class="chip accent">使用中</span>
-            <span v-if="profile.protocol === 'socks5'" class="chip subtle">仅保存</span>
           </div>
           <div class="profile-url">{{ profileUrl(profile) }}</div>
         </div>
@@ -107,10 +106,6 @@ function remove(profile: Profile) {
       <div class="note-row">
         <strong>无缝切换</strong>
         <p>代理开启时切换配置只改写地址，不会先关闭再开启，连接中断时间更短。</p>
-      </div>
-      <div class="note-row">
-        <strong>SOCKS5</strong>
-        <p>当前版本只保存 SOCKS5 配置，不写入系统代理；请优先使用 HTTP / HTTPS。</p>
       </div>
     </SectionCard>
 

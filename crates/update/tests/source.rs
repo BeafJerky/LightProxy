@@ -1,3 +1,4 @@
+use lightproxy_core::Protocol;
 use lightproxy_update::{asset_name, production_sources, ProxySource, Source};
 
 const REPO: &str = "https://github.com/BeafJerky/LightProxy";
@@ -100,4 +101,18 @@ fn proxy_source_keeps_upstream_urls_but_sets_via_proxy() {
         proxied.asset_url("0.1.4", &asset_name("0.1.4")),
         "https://github.com/BeafJerky/LightProxy/releases/download/v0.1.4/LightProxy_0.1.4_x64-setup.exe"
     );
+}
+
+#[test]
+fn proxy_source_maps_http_and_socks5_urls() {
+    let http = ProxySource::for_profile(Protocol::Http, "192.168.5.4:7890".into());
+    assert_eq!(http.url, "http://192.168.5.4:7890");
+    assert_eq!(http.display, "192.168.5.4:7890");
+
+    let https = ProxySource::for_profile(Protocol::Https, "192.168.5.4:7890".into());
+    assert_eq!(https.url, "http://192.168.5.4:7890");
+
+    let socks = ProxySource::for_profile(Protocol::Socks5, "192.168.5.4:1080".into());
+    assert_eq!(socks.url, "socks5h://192.168.5.4:1080");
+    assert_eq!(socks.display, "192.168.5.4:1080");
 }

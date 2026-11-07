@@ -209,6 +209,13 @@ pub struct HealthResult {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CheckReport {
+    pub tcp: HealthResult,
+    pub proxy: Option<HealthResult>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeState {
     pub desired: Desired,
     pub active_profile_id: Option<String>,

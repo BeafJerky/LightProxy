@@ -196,12 +196,12 @@ export const useAppStore = defineStore('app', () => {
   const switchProfile = (profileId: string, force = false) =>
     applyState('switch', () => api.switchProfile(profileId, force))
 
-  async function checkHealth(force = false) {
-    const result = await run('health', () => api.checkHealth(force))
-    if (result && state.value) {
-      state.value = { ...state.value, lastHealth: result }
+  async function checkHealth(force = false, mode: 'tcp' | 'deep' = 'tcp') {
+    const report = await run('health', () => api.checkHealth(force, mode))
+    if (report && state.value) {
+      state.value = { ...state.value, lastHealth: report.tcp }
     }
-    return result
+    return report
   }
 
   const saveProfile = (input: ProfileInput) => applyState('save-profile', () => api.saveProfile(input))

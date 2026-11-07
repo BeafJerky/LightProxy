@@ -1,6 +1,6 @@
 # LightProxy
 
-> 当前为 **0.x 测试版**（v0.2.1）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
+> 当前为 **0.x 测试版**（v0.3.0）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 Windows 托盘上的系统代理快捷开关。基于 Tauri 2 + Rust + Vue 3 + Naive UI，单实例常驻，面板 360×560，设置页 780×640。
 
@@ -10,8 +10,8 @@ Windows 托盘上的系统代理快捷开关。基于 Tauri 2 + Rust + Vue 3 + N
 - 开关前快照原始代理设置，关闭时按快照恢复，不破坏已有配置
 - PAC 冲突、代理不可达时给出明确错误，可强制开启
 - 异常退出后自动恢复，代理漂移检测（2s 轮询，不自动覆盖）
-- 健康检查、诊断与一键修复、修复历史
-- 关于页手动检查、下载、校验并安装更新（SHA256 + PE 头校验，不后台轮询、不静默安装）
+- 两层连通性检查（TCP 端口 + 协议转发）、诊断与一键修复、修复历史
+- 关于页手动检查、下载、校验并安装更新（支持 HTTP / SOCKS5 代理，SHA256 + PE 头校验，不后台轮询、不静默安装）
 - 8 套主题（浅色 / 深色 / 跟随系统 / Win11 亮暗 / Terminal / Paper / 高对比）
 - 全局快捷键、托盘菜单、开机自启
 
@@ -25,7 +25,7 @@ source/
 │  ├─ wininet.rs         # 注册表读写与 InternetSetOption 通知
 │  ├─ backend.rs         # ProxyBackend trait（可替换实现）
 │  ├─ actor.rs           # 单写线程，串行化所有代理操作
-│  ├─ health.rs          # TCP / HTTP 探测
+│  ├─ health.rs          # TCP 端口与协议级探测
 │  ├─ recovery.rs        # 启动恢复与漂移处理
 │  ├─ repair.rs          # 诊断与修复
 │  └─ watcher.rs         # 注册表漂移监听
@@ -81,7 +81,7 @@ pnpm tauri build
 
 ## 版本与发布
 
-当前处于 0.x 测试版，用户可见位置统一写作 `v0.2.1 · 测试版`。
+当前处于 0.x 测试版，用户可见位置统一写作 `v0.3.0 · 测试版`。
 
 - `MINOR`：新增功能、行为调整、配置或持久化结构的不兼容变更。
 - `PATCH`：兼容缺陷修复、文案调整、依赖补丁、性能优化。

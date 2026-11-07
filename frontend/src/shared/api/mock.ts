@@ -3,6 +3,7 @@ import { APP_VERSION } from '@/shared/version'
 import { DEFAULT_SETTINGS } from './defaults'
 import type {
   AppState,
+  CheckReport,
   CoreError,
   Diagnostic,
   HealthResult,
@@ -191,15 +192,25 @@ export function mockCall(
     case 'check_health': {
       const target = activeTarget()
       if (!target) error('E_PROFILE_NOT_FOUND', '没有可用的代理配置')
-      const result: HealthResult = {
+      const tcp: HealthResult = {
         ok: true,
         stage: 'tcp',
         latencyMs: 8 + Math.round(Math.random() * 18),
         checkedAtMs: nowMs(),
         error: null
       }
-      state = { ...state, lastHealth: result }
-      return result
+      state = { ...state, lastHealth: tcp }
+      const report: CheckReport = { tcp, proxy: null }
+      if (args?.mode === 'deep') {
+        report.proxy = {
+          ok: true,
+          stage: 'proxy',
+          latencyMs: 30 + Math.round(Math.random() * 40),
+          checkedAtMs: nowMs(),
+          error: null
+        }
+      }
+      return report
     }
     case 'list_profiles':
       return state.profiles

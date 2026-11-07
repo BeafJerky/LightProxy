@@ -7,7 +7,7 @@ description = "LightProxy update discovery, download and verification"
 
 [dependencies]
 lightproxy-core = { path = "../core" }
-reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls", "socks"] }
 sha2 = "0.10"
 
 [dev-dependencies]

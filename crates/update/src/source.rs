@@ -1,4 +1,4 @@
-use lightproxy_core::CoreError;
+use lightproxy_core::{CoreError, Protocol};
 
 pub const REPO_ROOT: &str = "https://github.com/BeafJerky/LightProxy";
 pub const MIRRORS: [(&str, bool); 3] = [
@@ -11,6 +11,21 @@ pub const MIRRORS: [(&str, bool); 3] = [
 pub struct ProxySource {
     pub url: String,
     pub display: String,
+}
+
+impl ProxySource {
+    pub fn for_profile(protocol: Protocol, endpoint: String) -> Self {
+        match protocol {
+            Protocol::Socks5 => Self {
+                url: format!("socks5h://{endpoint}"),
+                display: endpoint,
+            },
+            Protocol::Http | Protocol::Https => Self {
+                url: format!("http://{endpoint}"),
+                display: endpoint,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

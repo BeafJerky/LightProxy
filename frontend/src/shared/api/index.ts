@@ -3,9 +3,9 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { mockCall, setMockProgressHandler } from './mock'
 import type {
   AppState,
+  CheckReport,
   CoreError,
   Diagnostic,
-  HealthResult,
   Profile,
   ProfileInput,
   RepairRecord,
@@ -47,7 +47,8 @@ export const api = {
   disableProxy: () => call<AppState>('disable_proxy'),
   switchProfile: (profileId: string, force = false) =>
     call<AppState>('switch_profile', { profileId, force }),
-  checkHealth: (force = false) => call<HealthResult>('check_health', { mode: 'tcp', force }),
+  checkHealth: (force = false, mode: 'tcp' | 'deep' = 'tcp') =>
+    call<CheckReport>('check_health', { mode, force }),
   listProfiles: () => call<Profile[]>('list_profiles'),
   saveProfile: (input: ProfileInput) => call<AppState>('save_profile', { input }),
   deleteProfile: (id: string) => call<AppState>('delete_profile', { id }),

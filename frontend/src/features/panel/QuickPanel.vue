@@ -5,6 +5,7 @@ import Icon from '@/shared/ui/Icon.vue'
 import StatusCard from '@/features/status/StatusCard.vue'
 import { profileServer, useAppStore } from '@/stores/app'
 import { APP_VERSION_LABEL } from '@/shared/version'
+import { healthToast } from './health-toast'
 import type { Profile } from '@/shared/api/types'
 
 const store = useAppStore()
@@ -55,13 +56,11 @@ async function forceAction() {
 }
 
 async function checkHealth() {
-  const result = await store.checkHealth(true)
-  if (!result) return
-  if (result.ok) {
-    message.success(`连接正常，延迟 ${result.latencyMs}ms`)
-  } else {
-    message.error(result.error ?? '代理端口不可达')
-  }
+  if (store.busy) return
+  const report = await store.checkHealth(true, 'deep')
+  if (!report) return
+  const toast = healthToast(report)
+  message[toast.type](toast.text)
 }
 
 async function copyAddress() {

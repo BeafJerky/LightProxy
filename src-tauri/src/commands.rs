@@ -2,8 +2,8 @@ use crate::app_ctx::AppCtx;
 use crate::hotkeys;
 use crate::window;
 use lightproxy_core::{
-    now_ms, ActorHandle, AppState, CoreError, Diagnostic, HealthResult, Profile, ProfileInput,
-    RepairRecord, RepairResult, Settings,
+    health, now_ms, ActorHandle, AppState, CheckReport, CoreError, Diagnostic, HealthResult,
+    Profile, ProfileInput, RepairRecord, RepairResult, Settings,
 };
 use serde::Serialize;
 use std::fs;
@@ -63,15 +63,49 @@ pub async fn switch_profile(
     blocking(move || actor.switch_profile(profile_id, force.unwrap_or(false))).await
 }
 
+fn wants_deep(mode: Option<&str>) -> bool {
+    mode == Some("deep")
+}
+
+fn health_profile(state: &AppState) -> Option<Profile> {
+    let id = state
+        .active_profile_id
+        .as_deref()
+        .or(state.default_profile_id.as_deref())?;
+    state
+        .profiles
+        .iter()
+        .find(|profile| profile.id == id)
+        .cloned()
+}
+
 #[tauri::command]
 pub async fn check_health(
     app: AppHandle,
     mode: Option<String>,
     force: Option<bool>,
-) -> Result<HealthResult, CoreError> {
-    let _ = mode;
+) -> Result<CheckReport, CoreError> {
+    let deep = wants_deep(mode.as_deref());
     let actor = actor(&app);
-    blocking(move || actor.check_health(force.unwrap_or(false))).await
+
+    let health_actor = actor.clone();
+    let tcp = blocking(move || health_actor.check_health(force.unwrap_or(false))).await?;
+    if !deep || !tcp.ok {
+        return Ok(CheckReport { tcp, proxy: None });
+    }
+
+    let state_actor = actor.clone();
+    let state = blocking(move || state_actor.get_state()).await?;
+    let profile = health_profile(&state).ok_or_else(|| {
+        CoreError::new("no_profile", "health", "没有可检查的配置").with_hint("先添加一套代理配置")
+    })?;
+    let timeout = health::verify_timeout(state.settings.preflight_timeout_ms);
+    let proxy: HealthResult = blocking(move || Ok(health::verify(&profile, timeout))).await?;
+
+    Ok(CheckReport {
+        tcp,
+        proxy: Some(proxy),
+    })
 }
 
 #[tauri::command]
@@ -231,4 +265,46 @@ pub fn hide_window(app: AppHandle) -> Result<(), CoreError> {
 #[tauri::command]
 pub fn get_initial_view(app: AppHandle) -> String {
     app.state::<AppCtx>().current_view()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lightproxy_core::{Desired, Protocol, ProxyState};
+
+    fn state(active: Option<&str>, default: Option<&str>) -> AppState {
+        AppState {
+            state: ProxyState::On,
+            desired: Desired::On,
+            active_profile_id: active.map(str::to_string),
+            last_health: None,
+            message: None,
+            profiles: vec![Profile {
+                id: "p1".into(),
+                name: "主用".into(),
+                protocol: Protocol::Http,
+                host: "127.0.0.1".into(),
+                port: 7890,
+            }],
+            default_profile_id: default.map(str::to_string),
+            settings: Settings::default(),
+            snapshot: None,
+        }
+    }
+
+    #[test]
+    fn deep_mode_is_opt_in() {
+        assert!(!wants_deep(None));
+        assert!(!wants_deep(Some("tcp")));
+        assert!(!wants_deep(Some("something")));
+        assert!(wants_deep(Some("deep")));
+    }
+
+    #[test]
+    fn health_profile_prefers_active_then_default() {
+        assert_eq!(health_profile(&state(Some("p1"), None)).unwrap().id, "p1");
+        assert_eq!(health_profile(&state(None, Some("p1"))).unwrap().id, "p1");
+        assert_eq!(health_profile(&state(Some("missing"), Some("p1"))), None);
+        assert_eq!(health_profile(&state(None, None)), None);
+    }
 }

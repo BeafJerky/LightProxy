@@ -1,7 +1,7 @@
 {
   "name": "lightproxy",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "LightProxy 系统代理快捷开关（测试版）",
   "type": "module",
   "scripts": {

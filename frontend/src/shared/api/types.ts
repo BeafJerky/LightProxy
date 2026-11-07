@@ -44,6 +44,11 @@ export interface HealthResult {
   error: string | null
 }
 
+export interface CheckReport {
+  tcp: HealthResult
+  proxy: HealthResult | null
+}
+
 export interface ProxySnapshot {
   proxyEnable: boolean
   proxyServer: string

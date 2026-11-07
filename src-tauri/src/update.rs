@@ -1,7 +1,7 @@
 use crate::app_ctx::AppCtx;
 use crate::commands::blocking;
 use crate::tray;
-use lightproxy_core::{now_ms, AppState, CoreError, Profile, Protocol, ProxyState};
+use lightproxy_core::{now_ms, AppState, CoreError, Profile, ProxyState};
 use lightproxy_update::{
     has_mz, is_newer, is_version, production_sources, release_url, sha256_file, DownloadedPackage,
     Progress, ProxySource, UpdateClient,
@@ -156,14 +156,10 @@ fn active_proxy(state: &AppState) -> Option<ProxySource> {
         return None;
     }
     let profile = active_profile(state)?;
-    if profile.protocol == Protocol::Socks5 {
-        return None;
-    }
-    let display = profile.endpoint();
-    Some(ProxySource {
-        url: format!("http://{display}"),
-        display,
-    })
+    Some(ProxySource::for_profile(
+        profile.protocol,
+        profile.endpoint(),
+    ))
 }
 
 fn active_profile(state: &AppState) -> Option<&Profile> {
@@ -400,7 +396,7 @@ pub fn open_release_page(version: String) -> Result<(), CoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lightproxy_core::{Desired, Settings};
+    use lightproxy_core::{Desired, Protocol, Settings};
 
     fn state(proxy: ProxyState, protocol: Protocol) -> AppState {
         AppState {
@@ -434,17 +430,23 @@ mod tests {
     }
 
     #[test]
-    fn only_active_http_profiles_become_update_proxies() {
-        assert_eq!(active_proxy(&state(ProxyState::Off, Protocol::Http)), None);
+    fn active_proxy_uses_socks5h_for_socks_profiles() {
         assert_eq!(
-            active_proxy(&state(ProxyState::Enabling, Protocol::Http)),
+            active_proxy(&state(ProxyState::Off, Protocol::Socks5)),
             None
         );
-        // SOCKS5 没有可复用的 HTTP 代理端点，不能当更新代理。
-        assert_eq!(active_proxy(&state(ProxyState::On, Protocol::Socks5)), None);
-        let proxy =
+        assert_eq!(
+            active_proxy(&state(ProxyState::Enabling, Protocol::Socks5)),
+            None
+        );
+
+        let http =
             active_proxy(&state(ProxyState::Degraded, Protocol::Http)).expect("降级时仍可复用代理");
-        assert_eq!(proxy.url, "http://127.0.0.1:7890");
-        assert_eq!(proxy.display, "127.0.0.1:7890");
+        assert_eq!(http.url, "http://127.0.0.1:7890");
+        assert_eq!(http.display, "127.0.0.1:7890");
+
+        let socks = active_proxy(&state(ProxyState::On, Protocol::Socks5)).expect("SOCKS5 可复用");
+        assert_eq!(socks.url, "socks5h://127.0.0.1:7890");
+        assert_eq!(socks.display, "127.0.0.1:7890");
     }
 }

@@ -1,6 +1,8 @@
 use crate::app_ctx::AppCtx;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
+use tauri::webview::PageLoadEvent;
 use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     WindowEvent,
@@ -8,6 +10,7 @@ use tauri::{
 
 const PANEL: (f64, f64) = (360.0, 560.0);
 const SETTINGS: (f64, f64) = (780.0, 640.0);
+const BLUR_SETTLE: Duration = Duration::from_millis(300);
 
 fn size_for(view: &str) -> (f64, f64) {
     if view == "settings" {
@@ -29,14 +32,14 @@ pub fn open(app: &AppHandle, view: &str) -> tauri::Result<()> {
     }
     if let Some(window) = app.get_webview_window("main") {
         window.set_size(tauri::LogicalSize::new(size_for(view).0, size_for(view).1))?;
-        position(&window)?;
-        window.show()?;
-        window.set_focus()?;
         let _ = window.emit("navigate", view);
+        reveal(&window)?;
         return Ok(());
     }
 
     let (width, height) = size_for(view);
+    let first_load = Arc::new(AtomicBool::new(false));
+    let first_load_flag = first_load.clone();
     let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("LightProxy")
         .inner_size(width, height)
@@ -49,11 +52,16 @@ pub fn open(app: &AppHandle, view: &str) -> tauri::Result<()> {
         .transparent(true)
         .visible(false)
         .shadow(true)
+        .on_page_load(move |window, payload| {
+            // 首帧就绪后再显示，避免先出现一个透明空窗。
+            if payload.event() == PageLoadEvent::Finished
+                && !first_load_flag.swap(true, Ordering::SeqCst)
+            {
+                let _ = reveal(&window);
+            }
+        })
         .build()?;
     attach(&window)?;
-    position(&window)?;
-    window.show()?;
-    window.set_focus()?;
     Ok(())
 }
 
@@ -70,8 +78,7 @@ pub fn set_view(app: &AppHandle, view: &str) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
         window.set_size(tauri::LogicalSize::new(size_for(view).0, size_for(view).1))?;
         let _ = window.emit("navigate", view);
-        window.show()?;
-        window.set_focus()?;
+        reveal(&window)?;
         Ok(())
     } else {
         open(app, view)
@@ -80,9 +87,22 @@ pub fn set_view(app: &AppHandle, view: &str) -> tauri::Result<()> {
 
 pub fn hide(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
+        if let Some(ctx) = app.try_state::<AppCtx>() {
+            ctx.reveal.reset();
+        }
         window.hide()?;
         schedule_destroy(app);
     }
+    Ok(())
+}
+
+fn reveal(window: &WebviewWindow) -> tauri::Result<()> {
+    position(window)?;
+    if let Some(ctx) = window.app_handle().try_state::<AppCtx>() {
+        ctx.reveal.mark_revealed();
+    }
+    window.show()?;
+    window.set_focus()?;
     Ok(())
 }
 
@@ -112,12 +132,19 @@ fn attach(window: &WebviewWindow) -> tauri::Result<()> {
     let handle = window.app_handle().clone();
     let target = window.clone();
     window.on_window_event(move |event| match event {
-        WindowEvent::Focused(false) => {
-            if let Some(ctx) = handle.try_state::<AppCtx>() {
-                if ctx.current_view() == "panel" {
-                    let _ = target.hide();
-                    schedule_destroy(&handle);
-                }
+        WindowEvent::Focused(focused) => {
+            if *focused {
+                return;
+            }
+            let Some(ctx) = handle.try_state::<AppCtx>() else {
+                return;
+            };
+            // 面板显示瞬间的失焦可能来自托盘弹出层的焦点回弹，不能当作点击外部。
+            let hide = ctx.current_view() == "panel" && ctx.reveal.should_hide_on_blur(BLUR_SETTLE);
+            if hide {
+                ctx.reveal.reset();
+                let _ = target.hide();
+                schedule_destroy(&handle);
             }
         }
         WindowEvent::CloseRequested { api, .. } => {
@@ -136,6 +163,7 @@ fn attach(window: &WebviewWindow) -> tauri::Result<()> {
                     return;
                 }
             }
+            ctx.reveal.reset();
             let _ = target.hide();
             schedule_destroy(&handle);
         }

@@ -173,6 +173,16 @@ pub fn run() {
         });
 
     builder
-        .run(tauri::generate_context!())
-        .expect("error while running LightProxy");
+        .build(tauri::generate_context!())
+        .expect("error while building LightProxy")
+        .run(|_, event| {
+            // 隐藏窗口会在超时后被销毁以释放 WebView；销毁最后一个窗口
+            // 并不代表用户要退出，托盘常驻应用必须留在后台。
+            if let tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } = event
+            {
+                api.prevent_exit();
+            }
+        });
 }

@@ -134,6 +134,16 @@ function confirmInstall() {
           <p>多套代理快速切换、状态检查与异常修复。只接管 Windows 当前用户的系统代理设置。</p>
         </div>
       </div>
+      <div class="repo-links">
+        <button class="mini-btn repo-link" type="button" @click="store.openRepoPage()">
+          <Icon name="github" :size="15" />
+          项目仓库
+        </button>
+        <button class="mini-btn repo-link" type="button" @click="store.openReleasesPage()">
+          <Icon name="github" :size="15" />
+          发布说明
+        </button>
+      </div>
     </SectionCard>
 
     <SectionCard title="运行信息">
@@ -324,6 +334,21 @@ function confirmInstall() {
   font-size: 11.5px;
   line-height: 1.6;
   color: var(--muted);
+}
+
+.repo-links {
+  display: flex;
+  gap: 8px;
+  margin-top: -2px;
+  padding: 12px 0 6px;
+  border-top: 1px solid var(--border);
+}
+
+.repo-link {
+  height: 30px;
+  padding: 0 12px;
+  gap: 7px;
+  font-size: 12px;
 }
 
 .info-row {

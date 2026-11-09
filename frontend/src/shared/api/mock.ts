@@ -276,6 +276,9 @@ export function mockCall(
       return repairs
     case 'open_log_dir':
       return '%LOCALAPPDATA%\\com.lightproxy.desktop\\logs'
+    case 'open_repo_page':
+    case 'open_releases_page':
+      return null
     case 'export_diagnostics':
       return { path: '%LOCALAPPDATA%\\com.lightproxy.desktop\\logs\\diagnostics-mock.json' }
     case 'get_initial_view':

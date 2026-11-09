@@ -200,6 +200,35 @@ pub fn open_log_dir(app: AppHandle) -> Result<String, CoreError> {
     Ok(dir.to_string_lossy().to_string())
 }
 
+fn open_external(url: &str) -> Result<(), CoreError> {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .spawn()
+            .map_err(|err| {
+                CoreError::new("open_link_failed", "open", format!("打开链接失败：{err}"))
+                    .with_hint("请手动访问 GitHub")
+            })?;
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = url;
+        Err(CoreError::new("open_link_failed", "open", "仅支持 Windows"))
+    }
+}
+
+#[tauri::command]
+pub fn open_repo_page() -> Result<(), CoreError> {
+    open_external(lightproxy_update::REPO_ROOT)
+}
+
+#[tauri::command]
+pub fn open_releases_page() -> Result<(), CoreError> {
+    open_external(&format!("{}/releases", lightproxy_update::REPO_ROOT))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportResult {

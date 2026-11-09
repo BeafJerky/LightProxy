@@ -86,6 +86,8 @@ pub fn run() {
             commands::run_repair,
             commands::get_recent_repairs,
             commands::open_log_dir,
+            commands::open_repo_page,
+            commands::open_releases_page,
             commands::export_diagnostics,
             commands::quit_app,
             commands::open_settings,

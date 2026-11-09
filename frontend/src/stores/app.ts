@@ -248,6 +248,14 @@ export const useAppStore = defineStore('app', () => {
     return run('logs', () => api.openLogDir())
   }
 
+  async function openRepoPage() {
+    return run('repo', () => api.openRepoPage())
+  }
+
+  async function openReleasesPage() {
+    return run('releases', () => api.openReleasesPage())
+  }
+
   async function checkUpdate(force = false) {
     if (updateBusy.value) return
     updateError.value = null
@@ -367,6 +375,8 @@ export const useAppStore = defineStore('app', () => {
     repairAll,
     exportDiagnostics,
     openLogDir,
+    openRepoPage,
+    openReleasesPage,
     updateCheck,
     updatePackage,
     updateProgress,

@@ -11,7 +11,7 @@ pub use error::{
     busy, check_failed, download_failed, install_failed, invalid_version, no_package,
     not_available, open_failed, verify_failed,
 };
-pub use source::{production_sources, validate_https, ProxySource, Source};
+pub use source::{production_sources, validate_https, ProxySource, Source, REPO_ROOT};
 pub use version::{
     asset_name, compare_versions, is_newer, is_version, parse_version, release_url, sha_asset_name,
 };

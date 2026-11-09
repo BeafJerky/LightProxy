@@ -13,14 +13,14 @@ fn profile(id: &str, name: &str, host: &str, port: u16) -> Profile {
 
 #[test]
 fn parses_supported_endpoints() {
-    let (protocol, host, port) = parse_endpoint("http://192.168.5.4:7890").unwrap();
+    let (protocol, host, port) = parse_endpoint("http://192.0.2.4:7890").unwrap();
     assert_eq!(protocol, Protocol::Http);
-    assert_eq!(host, "192.168.5.4");
+    assert_eq!(host, "192.0.2.4");
     assert_eq!(port, 7890);
 
     assert_eq!(
-        parse_endpoint("192.168.5.4:7890").unwrap(),
-        (Protocol::Http, "192.168.5.4".into(), 7890)
+        parse_endpoint("192.0.2.4:7890").unwrap(),
+        (Protocol::Http, "192.0.2.4".into(), 7890)
     );
     assert_eq!(
         parse_endpoint("https://proxy.example.com:443").unwrap().0,
@@ -42,12 +42,12 @@ fn rejects_bad_endpoints() {
 
 #[test]
 fn validates_profile_names_and_duplicates() {
-    let existing = vec![profile("p1", "公司代理", "192.168.5.4", 7890)];
-    assert!(validate_profile(&profile("p1", "公司代理", "192.168.5.4", 7890), &existing).is_ok());
-    assert!(validate_profile(&profile("p2", "公司代理", "192.168.5.4", 7890), &existing).is_err());
-    assert!(validate_profile(&profile("p2", "  ", "192.168.5.4", 7890), &existing).is_err());
+    let existing = vec![profile("p1", "公司代理", "192.0.2.4", 7890)];
+    assert!(validate_profile(&profile("p1", "公司代理", "192.0.2.4", 7890), &existing).is_ok());
+    assert!(validate_profile(&profile("p2", "公司代理", "192.0.2.4", 7890), &existing).is_err());
+    assert!(validate_profile(&profile("p2", "  ", "192.0.2.4", 7890), &existing).is_err());
     assert!(validate_profile(&profile("p2", "备用", "", 7890), &existing).is_err());
-    assert!(validate_profile(&profile("p2", "备用", "192.168.5.4", 0), &existing).is_err());
+    assert!(validate_profile(&profile("p2", "备用", "192.0.2.4", 0), &existing).is_err());
 }
 
 #[test]
@@ -72,10 +72,10 @@ fn socks5_server_uses_socks_protocol_entry() {
 
 #[test]
 fn socks5_endpoint_hides_registry_prefix() {
-    let mut item = profile("p8", "SOCKS", "192.168.5.4", 1080);
+    let mut item = profile("p8", "SOCKS", "192.0.2.4", 1080);
     item.protocol = Protocol::Socks5;
-    assert_eq!(item.endpoint(), "192.168.5.4:1080");
-    assert_eq!(item.display_url(), "socks5://192.168.5.4:1080");
+    assert_eq!(item.endpoint(), "192.0.2.4:1080");
+    assert_eq!(item.display_url(), "socks5://192.0.2.4:1080");
 
     item.host = "::1".into();
     assert_eq!(item.endpoint(), "[::1]:1080");

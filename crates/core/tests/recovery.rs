@@ -35,11 +35,11 @@ fn crashed_with_socks5_proxy_matches_socks_profile() {
         id: "p_socks".into(),
         name: "SOCKS 代理".into(),
         protocol: Protocol::Socks5,
-        host: "192.168.5.4".into(),
+        host: "192.0.2.4".into(),
         port: 1080,
     });
     let mut registry = saved_proxy();
-    registry.proxy_server = "socks=192.168.5.4:1080".into();
+    registry.proxy_server = "socks=192.0.2.4:1080".into();
     let decision = decide_recovery(false, &registry, &persisted, Some(true));
     assert_eq!(
         decision,

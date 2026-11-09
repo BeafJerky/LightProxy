@@ -213,7 +213,7 @@ mod tests {
                 id: "p1".into(),
                 name: "SOCKS".into(),
                 protocol: Protocol::Socks5,
-                host: "192.168.5.4".into(),
+                host: "192.0.2.4".into(),
                 port: 1080,
             }],
             default_profile_id: None,
@@ -221,6 +221,6 @@ mod tests {
             snapshot: None,
         };
 
-        assert_eq!(status_text(&state), "代理已开启 · 192.168.5.4:1080");
+        assert_eq!(status_text(&state), "代理已开启 · 192.0.2.4:1080");
     }
 }

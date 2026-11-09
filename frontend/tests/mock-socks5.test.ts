@@ -4,7 +4,7 @@ import type { AppState } from '@/shared/api/types'
 
 function saveSocksProfile(name: string): string {
   const state = mockCall('save_profile', {
-    input: { id: null, name, protocol: 'socks5', host: '192.168.5.4', port: 1080 }
+    input: { id: null, name, protocol: 'socks5', host: '192.0.2.4', port: 1080 }
   }) as AppState
   const profile = state.profiles.find((item) => item.name === name)
   if (!profile) throw new Error('saved profile missing')

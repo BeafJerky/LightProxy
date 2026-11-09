@@ -3,7 +3,7 @@ import { hasErrors, validateProfileDraft } from '@/features/profiles/validation'
 import type { Profile } from '@/shared/api/types'
 
 const existing: Profile[] = [
-  { id: 'p_default', name: '公司代理', protocol: 'http', host: '192.168.5.4', port: 7890 }
+  { id: 'p_default', name: '公司代理', protocol: 'http', host: '192.0.2.4', port: 7890 }
 ]
 
 function draft(overrides: Partial<Parameters<typeof validateProfileDraft>[0]> = {}) {
@@ -11,7 +11,7 @@ function draft(overrides: Partial<Parameters<typeof validateProfileDraft>[0]> = 
     id: null,
     name: '备用代理',
     protocol: 'http',
-    host: '192.168.5.9',
+    host: '192.0.2.9',
     port: 7890,
     ...overrides
   }

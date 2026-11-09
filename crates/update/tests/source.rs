@@ -105,14 +105,14 @@ fn proxy_source_keeps_upstream_urls_but_sets_via_proxy() {
 
 #[test]
 fn proxy_source_maps_http_and_socks5_urls() {
-    let http = ProxySource::for_profile(Protocol::Http, "192.168.5.4:7890".into());
-    assert_eq!(http.url, "http://192.168.5.4:7890");
-    assert_eq!(http.display, "192.168.5.4:7890");
+    let http = ProxySource::for_profile(Protocol::Http, "192.0.2.4:7890".into());
+    assert_eq!(http.url, "http://192.0.2.4:7890");
+    assert_eq!(http.display, "192.0.2.4:7890");
 
-    let https = ProxySource::for_profile(Protocol::Https, "192.168.5.4:7890".into());
-    assert_eq!(https.url, "http://192.168.5.4:7890");
+    let https = ProxySource::for_profile(Protocol::Https, "192.0.2.4:7890".into());
+    assert_eq!(https.url, "http://192.0.2.4:7890");
 
-    let socks = ProxySource::for_profile(Protocol::Socks5, "192.168.5.4:1080".into());
-    assert_eq!(socks.url, "socks5h://192.168.5.4:1080");
-    assert_eq!(socks.display, "192.168.5.4:1080");
+    let socks = ProxySource::for_profile(Protocol::Socks5, "192.0.2.4:1080".into());
+    assert_eq!(socks.url, "socks5h://192.0.2.4:1080");
+    assert_eq!(socks.display, "192.0.2.4:1080");
 }

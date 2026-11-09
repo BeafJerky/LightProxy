@@ -23,7 +23,7 @@ fn persisted(sync: bool) -> PersistedState {
         id: "p_socks".into(),
         name: "SOCKS".into(),
         protocol: Protocol::Socks5,
-        host: "192.168.5.4".into(),
+        host: "192.0.2.4".into(),
         port: 1080,
     });
     state
@@ -116,7 +116,7 @@ fn switch_http_to_socks_adds_all_proxy_and_back_restores() {
     svc.switch_profile("p_socks", false).unwrap();
     assert_eq!(
         env_value(&backend, "all_proxy").as_deref(),
-        Some("socks5h://192.168.5.4:1080")
+        Some("socks5h://192.0.2.4:1080")
     );
     svc.switch_profile("p_default", false).unwrap();
     assert!(env_value(&backend, "all_proxy").is_none());

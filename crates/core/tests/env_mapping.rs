@@ -6,7 +6,7 @@ fn http_profile() -> Profile {
         id: "p1".into(),
         name: "HTTP".into(),
         protocol: Protocol::Http,
-        host: "192.168.5.4".into(),
+        host: "192.0.2.4".into(),
         port: 7890,
     }
 }
@@ -16,7 +16,7 @@ fn socks_profile() -> Profile {
         id: "p2".into(),
         name: "SOCKS".into(),
         protocol: Protocol::Socks5,
-        host: "192.168.5.4".into(),
+        host: "192.0.2.4".into(),
         port: 1080,
     }
 }
@@ -30,16 +30,16 @@ fn http_expected_maps_two_vars_and_no_proxy() {
     let vars = env::expected_vars(&http_profile());
     assert_eq!(
         value_of(&vars, "http_proxy").as_deref(),
-        Some("http://192.168.5.4:7890")
+        Some("http://192.0.2.4:7890")
     );
     assert_eq!(
         value_of(&vars, "https_proxy").as_deref(),
-        Some("http://192.168.5.4:7890")
+        Some("http://192.0.2.4:7890")
     );
     assert!(env::find(&vars, "all_proxy").is_none());
     assert_eq!(
         value_of(&vars, "no_proxy").as_deref(),
-        Some("localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,192.168.5.4")
+        Some("localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,192.0.2.4")
     );
 }
 
@@ -48,11 +48,11 @@ fn socks_expected_uses_socks5h_and_all_proxy() {
     let vars = env::expected_vars(&socks_profile());
     assert_eq!(
         value_of(&vars, "http_proxy").as_deref(),
-        Some("socks5h://192.168.5.4:1080")
+        Some("socks5h://192.0.2.4:1080")
     );
     assert_eq!(
         value_of(&vars, "all_proxy").as_deref(),
-        Some("socks5h://192.168.5.4:1080")
+        Some("socks5h://192.0.2.4:1080")
     );
 }
 
@@ -108,7 +108,7 @@ fn owned_names_matches_case_insensitively() {
     let current = vec![
         EnvVar {
             name: "HTTP_PROXY".into(),
-            value: Some("http://192.168.5.4:7890".into()),
+            value: Some("http://192.0.2.4:7890".into()),
             expand: false,
         },
         EnvVar {
@@ -142,7 +142,7 @@ fn restore_target_restores_owned_and_skips_drifted() {
     let current = vec![
         EnvVar {
             name: "http_proxy".into(),
-            value: Some("http://192.168.5.4:7890".into()),
+            value: Some("http://192.0.2.4:7890".into()),
             expand: false,
         },
         EnvVar {
@@ -174,7 +174,7 @@ fn apply_target_restores_snapshot_vars_not_in_expected() {
     );
     assert_eq!(
         value_of(&target, "http_proxy").as_deref(),
-        Some("http://192.168.5.4:7890")
+        Some("http://192.0.2.4:7890")
     );
 }
 
@@ -184,12 +184,12 @@ fn already_applied_compares_values_by_canonical_name() {
     let current = vec![
         EnvVar {
             name: "HTTP_PROXY".into(),
-            value: Some("http://192.168.5.4:7890".into()),
+            value: Some("http://192.0.2.4:7890".into()),
             expand: false,
         },
         EnvVar {
             name: "https_proxy".into(),
-            value: Some("http://192.168.5.4:7890".into()),
+            value: Some("http://192.0.2.4:7890".into()),
             expand: false,
         },
         EnvVar {

@@ -95,7 +95,7 @@ fn with_socks5_profile() -> PersistedState {
         id: "p_socks".into(),
         name: "SOCKS 代理".into(),
         protocol: Protocol::Socks5,
-        host: "192.168.5.4".into(),
+        host: "192.0.2.4".into(),
         port: 1080,
     });
     persisted
@@ -110,7 +110,7 @@ fn enable_socks5_writes_socks_entry_and_disable_restores() {
     let state = svc.enable("p_socks", true).unwrap();
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(state.active_profile_id.as_deref(), Some("p_socks"));
-    assert_eq!(backend.snapshot().proxy_server, "socks=192.168.5.4:1080");
+    assert_eq!(backend.snapshot().proxy_server, "socks=192.0.2.4:1080");
     assert!(backend.snapshot().proxy_enable);
 
     let off = svc.disable().unwrap();
@@ -128,7 +128,7 @@ fn switch_from_http_to_socks5_rewrites_server() {
     let state = svc.switch_profile("p_socks", false).unwrap();
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(state.active_profile_id.as_deref(), Some("p_socks"));
-    assert_eq!(backend.snapshot().proxy_server, "socks=192.168.5.4:1080");
+    assert_eq!(backend.snapshot().proxy_server, "socks=192.0.2.4:1080");
     assert_eq!(backend.writes(), 2);
 }
 

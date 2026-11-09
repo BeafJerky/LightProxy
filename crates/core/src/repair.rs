@@ -1,4 +1,7 @@
-use crate::model::{now_ms, Desired, HealthResult, ProxySnapshot, ProxyState, RepairRecord};
+use crate::env;
+use crate::model::{
+    now_ms, Desired, EnvVar, HealthResult, ProxySnapshot, ProxyState, RepairRecord,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,6 +31,10 @@ pub struct DiagnosticInput<'a> {
     pub store_warning: Option<&'a str>,
     pub last_save_error: Option<&'a str>,
     pub hotkey_failures: &'a [String],
+    pub sync_env_proxy: bool,
+    pub env_current: &'a [EnvVar],
+    pub env_expected: Option<&'a [EnvVar]>,
+    pub env_snapshot_present: bool,
 }
 
 pub fn build_diagnostics(input: DiagnosticInput<'_>) -> Vec<Diagnostic> {
@@ -109,6 +116,29 @@ pub fn build_diagnostics(input: DiagnosticInput<'_>) -> Vec<Diagnostic> {
             severity: "error".into(),
             auto_fixable: false,
         });
+    }
+    if input.sync_env_proxy {
+        let problem = if input.desired == Desired::On {
+            match input.env_expected {
+                Some(expected) => !env::already_applied(input.env_current, expected),
+                None => true,
+            }
+        } else {
+            input.env_snapshot_present
+        };
+        if problem {
+            items.push(Diagnostic {
+                id: "R15".into(),
+                title: "命令行代理未同步".into(),
+                detail: if input.desired == Desired::On {
+                    "环境变量与当前配置不一致，新启动的命令行工具可能不走代理。".into()
+                } else {
+                    "代理已关闭，但命令行环境变量尚未恢复。".into()
+                },
+                severity: "warn".into(),
+                auto_fixable: true,
+            });
+        }
     }
     items
 }

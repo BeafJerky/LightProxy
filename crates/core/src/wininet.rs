@@ -1,16 +1,43 @@
 use crate::backend::ProxyBackend;
 use crate::error::CoreError;
-use crate::model::ProxySnapshot;
+use crate::model::{EnvVar, ProxySnapshot};
 
 #[cfg(windows)]
 mod platform {
     use super::*;
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
+    use crate::env::ENV_VARS;
+    use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ};
     use winreg::RegKey;
 
     const DEFAULT_ROOT: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
     const INTERNET_OPTION_SETTINGS_CHANGED: u32 = 39;
     const INTERNET_OPTION_REFRESH: u32 = 37;
+
+    fn decode_sz(bytes: &[u8]) -> String {
+        let units: Vec<u16> = bytes
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        let end = units.iter().position(|&u| u == 0).unwrap_or(units.len());
+        String::from_utf16_lossy(&units[..end])
+    }
+
+    fn encode_sz(value: &str) -> Vec<u8> {
+        let mut units: Vec<u16> = value.encode_utf16().collect();
+        units.push(0);
+        units.iter().flat_map(|u| u.to_le_bytes()).collect()
+    }
+
+    fn absent_env() -> Vec<EnvVar> {
+        ENV_VARS
+            .iter()
+            .map(|n| EnvVar {
+                name: (*n).into(),
+                value: None,
+                expand: false,
+            })
+            .collect()
+    }
 
     #[derive(Debug, Clone)]
     pub struct WinInetBackend {
@@ -42,6 +69,19 @@ mod platform {
                         format!("无法打开代理注册表：{err}"),
                     )
                     .with_hint("检查当前用户是否可访问 Internet Settings")
+                })
+        }
+
+        fn env_key_read(&self) -> Result<RegKey, CoreError> {
+            RegKey::predef(HKEY_CURRENT_USER)
+                .open_subkey_with_flags("Environment", KEY_READ)
+                .map_err(|err| {
+                    CoreError::new(
+                        "env_read_failed",
+                        "env_read",
+                        format!("无法打开环境变量注册表：{err}"),
+                    )
+                    .with_hint("检查当前用户是否可访问 HKCU\\Environment")
                 })
         }
     }
@@ -125,6 +165,111 @@ mod platform {
             }
             Ok(())
         }
+
+        fn read_env(&self) -> Result<Vec<EnvVar>, CoreError> {
+            let key = match self.env_key_read() {
+                Ok(key) => key,
+                Err(_) => return Ok(absent_env()),
+            };
+            let mut found: Vec<EnvVar> = Vec::new();
+            for item in key.enum_values() {
+                let (name, value) = item.map_err(|err| {
+                    CoreError::new("env_read_failed", "env_read", err.to_string())
+                })?;
+                let lower = name.to_ascii_lowercase();
+                if !ENV_VARS.contains(&lower.as_str()) {
+                    continue;
+                }
+                // 环境变量正常均为字符串；非字符串类型罕见，按不存在处理。
+                if matches!(value.vtype, RegType::REG_SZ | RegType::REG_EXPAND_SZ) {
+                    found.push(EnvVar {
+                        name,
+                        value: Some(decode_sz(&value.bytes)),
+                        expand: value.vtype == RegType::REG_EXPAND_SZ,
+                    });
+                }
+            }
+            Ok(ENV_VARS
+                .iter()
+                .map(|n| {
+                    found
+                        .iter()
+                        .find(|v| v.name.eq_ignore_ascii_case(n))
+                        .cloned()
+                        .unwrap_or(EnvVar {
+                            name: (*n).into(),
+                            value: None,
+                            expand: false,
+                        })
+                })
+                .collect())
+        }
+
+        fn write_env(&self, vars: &[EnvVar]) -> Result<(), CoreError> {
+            let (key, _) = RegKey::predef(HKEY_CURRENT_USER)
+                .create_subkey("Environment")
+                .map_err(|err| {
+                    CoreError::new(
+                        "env_write_failed",
+                        "env_write",
+                        format!("无法写入环境变量：{err}"),
+                    )
+                    .with_hint("检查组策略或安全软件是否锁定 HKCU\\Environment")
+                })?;
+            for v in vars {
+                match &v.value {
+                    Some(value) => {
+                        let vtype = if v.expand {
+                            RegType::REG_EXPAND_SZ
+                        } else {
+                            RegType::REG_SZ
+                        };
+                        key.set_raw_value(
+                            &v.name,
+                            &winreg::RegValue {
+                                bytes: encode_sz(value),
+                                vtype,
+                            },
+                        )
+                        .map_err(|err| {
+                            CoreError::new("env_write_failed", "env_write", err.to_string())
+                        })?;
+                    }
+                    None => {
+                        let _ = key.delete_value(&v.name);
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        fn notify_env(&self) -> Result<(), CoreError> {
+            use windows_sys::Win32::UI::WindowsAndMessaging::{
+                SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+            };
+            let mut env: Vec<u16> = "Environment".encode_utf16().collect();
+            env.push(0);
+            let result = unsafe {
+                SendMessageTimeoutW(
+                    HWND_BROADCAST,
+                    WM_SETTINGCHANGE,
+                    0,
+                    env.as_ptr() as isize,
+                    SMTO_ABORTIFHUNG,
+                    5000,
+                    std::ptr::null_mut(),
+                )
+            };
+            if result == 0 {
+                return Err(CoreError::new(
+                    "env_notify_failed",
+                    "env_notify",
+                    "已写入环境变量，但系统广播失败",
+                )
+                .with_hint("重新登录或重启资源管理器后生效"));
+            }
+            Ok(())
+        }
     }
 }
 
@@ -157,6 +302,30 @@ impl ProxyBackend for WinInetBackend {
         Err(CoreError::new(
             "unsupported_platform",
             "notify",
+            "仅支持 Windows",
+        ))
+    }
+
+    fn read_env(&self) -> Result<Vec<EnvVar>, CoreError> {
+        Err(CoreError::new(
+            "unsupported_platform",
+            "env_read",
+            "仅支持 Windows",
+        ))
+    }
+
+    fn write_env(&self, _vars: &[EnvVar]) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            "unsupported_platform",
+            "env_write",
+            "仅支持 Windows",
+        ))
+    }
+
+    fn notify_env(&self) -> Result<(), CoreError> {
+        Err(CoreError::new(
+            "unsupported_platform",
+            "env_notify",
             "仅支持 Windows",
         ))
     }

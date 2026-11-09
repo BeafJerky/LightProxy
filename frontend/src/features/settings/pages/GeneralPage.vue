@@ -113,6 +113,15 @@ function commitOverride() {
         description="默认会在退出时恢复接管前的系统代理；开启后则保持当前代理。"
         @update:model-value="patch('keepProxyOnExit', $event)"
       />
+      <ToggleRow
+        :model-value="store.settings.syncEnvProxy"
+        label="同步命令行代理"
+        description="让 Git、curl、npm 等新启动的命令行工具自动走代理；已打开的终端需要重开。默认关闭。"
+        @update:model-value="patch('syncEnvProxy', $event)"
+      />
+      <p v-if="store.settings.syncEnvProxy" class="env-hint">
+        开启后写入 http_proxy / https_proxy（SOCKS5 配置另写 all_proxy），并设置 no_proxy 绕过本机与内网地址。
+      </p>
     </SectionCard>
 
     <SectionCard title="绕过代理" hint="ProxyOverride">
@@ -140,5 +149,13 @@ function commitOverride() {
   font-family: var(--mono);
   font-size: 11px;
   line-height: 1.55;
+}
+
+.env-hint {
+  margin: 0;
+  padding: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--muted);
 }
 </style>

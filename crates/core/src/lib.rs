@@ -5,6 +5,7 @@
 
 pub mod actor;
 pub mod backend;
+pub mod env;
 pub mod error;
 pub mod health;
 pub mod model;
@@ -24,6 +25,6 @@ pub use model::*;
 pub use repair::{Diagnostic, RepairResult};
 pub use service::{Command, CommandReply, ProxyService};
 pub use store::{LoadResult, StateStore};
-pub use uninstall::{restore_from_dir, restore_snapshot, RestoreOutcome};
+pub use uninstall::{restore_env, restore_from_dir, restore_snapshot, RestoreOutcome};
 pub use watcher::Watcher;
 pub use wininet::WinInetBackend;

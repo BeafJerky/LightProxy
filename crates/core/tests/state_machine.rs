@@ -1,6 +1,8 @@
 use lightproxy_core::actor::ActorHandle;
 use lightproxy_core::backend::{MemoryBackend, ProxyBackend};
-use lightproxy_core::model::{PersistedState, Profile, Protocol, ProxySnapshot, ProxyState};
+use lightproxy_core::model::{
+    EnvVar, PersistedState, Profile, Protocol, ProxySnapshot, ProxyState,
+};
 use lightproxy_core::service::ProxyService;
 use lightproxy_core::store::StateStore;
 use std::sync::Arc;
@@ -44,7 +46,7 @@ fn enable_then_disable_restores_baseline() {
     let state = svc.enable("p_default", true).unwrap();
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(state.active_profile_id.as_deref(), Some("p_default"));
-    assert_eq!(backend.snapshot().proxy_server, "192.168.5.4:7890");
+    assert_eq!(backend.snapshot().proxy_server, "127.0.0.1:7890");
     assert!(backend.snapshot().proxy_enable);
     assert_eq!(svc.state().snapshot.unwrap().proxy_server, "10.0.0.2:8080");
 
@@ -84,7 +86,7 @@ fn switch_profile_stays_on_without_extra_disable_write() {
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(state.active_profile_id.as_deref(), Some("p_backup"));
     assert_eq!(backend.writes(), 2);
-    assert_eq!(backend.snapshot().proxy_server, "192.168.5.9:7890");
+    assert_eq!(backend.snapshot().proxy_server, "127.0.0.1:7890");
 }
 
 fn with_socks5_profile() -> PersistedState {
@@ -163,6 +165,18 @@ impl ProxyBackend for LyingBackend {
 
     fn notify(&self) -> Result<(), lightproxy_core::CoreError> {
         self.inner.notify()
+    }
+
+    fn read_env(&self) -> Result<Vec<EnvVar>, lightproxy_core::CoreError> {
+        self.inner.read_env()
+    }
+
+    fn write_env(&self, vars: &[EnvVar]) -> Result<(), lightproxy_core::CoreError> {
+        self.inner.write_env(vars)
+    }
+
+    fn notify_env(&self) -> Result<(), lightproxy_core::CoreError> {
+        self.inner.notify_env()
     }
 }
 

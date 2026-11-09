@@ -118,6 +118,8 @@ pub struct Settings {
     pub tray_click_action: String,
     pub proxy_override: String,
     pub keep_proxy_on_exit: bool,
+    #[serde(default)]
+    pub sync_env_proxy: bool,
 }
 
 impl Default for Settings {
@@ -132,6 +134,7 @@ impl Default for Settings {
             tray_click_action: "panel".into(),
             proxy_override: DEFAULT_PROXY_OVERRIDE.into(),
             keep_proxy_on_exit: false,
+            sync_env_proxy: false,
         }
     }
 }
@@ -195,6 +198,21 @@ impl ProxySnapshot {
     pub fn same_proxy(&self, other: &Self) -> bool {
         self.proxy_enable == other.proxy_enable && self.proxy_server == other.proxy_server
     }
+}
+
+/// 单个环境变量的接管快照。`value: None` 表示接管前不存在，恢复时删除。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvVar {
+    pub name: String,
+    pub value: Option<String>,
+    pub expand: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvSnapshot {
+    pub vars: Vec<EnvVar>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -264,6 +282,7 @@ pub struct PersistedState {
     pub settings: Settings,
     pub runtime: RuntimeState,
     pub snapshot: Option<ProxySnapshot>,
+    pub env_snapshot: Option<EnvSnapshot>,
     pub repairs: Vec<RepairRecord>,
 }
 
@@ -280,14 +299,14 @@ impl PersistedState {
                 id: "p_default".into(),
                 name: "公司代理".into(),
                 protocol: Protocol::Http,
-                host: "192.168.5.4".into(),
+                host: "127.0.0.1".into(),
                 port: 7890,
             },
             Profile {
                 id: "p_backup".into(),
                 name: "备用代理".into(),
                 protocol: Protocol::Http,
-                host: "192.168.5.9".into(),
+                host: "127.0.0.1".into(),
                 port: 7890,
             },
         ];
@@ -299,6 +318,7 @@ impl PersistedState {
             settings: Settings::default(),
             runtime: RuntimeState::default(),
             snapshot: None,
+            env_snapshot: None,
             repairs: Vec::new(),
         }
     }

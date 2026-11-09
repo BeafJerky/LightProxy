@@ -1,4 +1,5 @@
 use crate::backend::ProxyBackend;
+use crate::env;
 use crate::error::CoreResult;
 use crate::model::{Desired, PersistedState};
 use crate::store::StateStore;
@@ -45,6 +46,30 @@ pub fn restore_snapshot(
     Ok(RestoreOutcome::Restored)
 }
 
+/// 所有权校验后还原环境变量；失败由调用方决定是否阻断。
+pub fn restore_env(backend: &dyn ProxyBackend, persisted: &PersistedState) -> CoreResult<()> {
+    let Some(snapshot) = persisted.env_snapshot.clone() else {
+        return Ok(());
+    };
+    let Some(profile) = persisted
+        .runtime
+        .active_profile_id
+        .as_deref()
+        .and_then(|id| persisted.profile(id))
+    else {
+        return Ok(());
+    };
+    let current = backend.read_env()?;
+    let expected = env::expected_vars(profile);
+    let target = env::restore_target(&snapshot, &current, &expected);
+    if target.is_empty() || env::already_applied(&current, &target) {
+        return Ok(());
+    }
+    backend.write_env(&target)?;
+    let _ = backend.notify_env();
+    Ok(())
+}
+
 /// Entry point used by `LightProxy.exe --restore-snapshot` before uninstall.
 pub fn restore_from_dir(
     backend: &dyn ProxyBackend,
@@ -56,12 +81,14 @@ pub fn restore_from_dir(
     }
     let loaded = store.load();
     let outcome = restore_snapshot(backend, &loaded.state)?;
+    let _ = restore_env(backend, &loaded.state);
     if matches!(
         outcome,
         RestoreOutcome::Restored | RestoreOutcome::AlreadyRestored
     ) {
         let mut state = loaded.state;
         state.snapshot = None;
+        state.env_snapshot = None;
         state.runtime.active_profile_id = None;
         state.runtime.desired = Desired::Off;
         state.clean_shutdown = true;

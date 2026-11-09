@@ -9,7 +9,7 @@ use std::sync::Arc;
 fn saved_proxy() -> ProxySnapshot {
     ProxySnapshot {
         proxy_enable: true,
-        proxy_server: "192.168.5.4:7890".into(),
+        proxy_server: "127.0.0.1:7890".into(),
         proxy_override: "<local>".into(),
         auto_config_url: None,
     }
@@ -94,11 +94,20 @@ fn pac_is_reported_not_taken_over() {
 
 #[test]
 fn service_recovery_fills_snapshot_and_marks_dirty() {
+    // 本机监听保证探活成功，避免依赖真实网络
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
     let dir = tempfile::tempdir().unwrap();
     let mut persisted = PersistedState::initial();
     persisted.clean_shutdown = false;
     persisted.settings.preflight_enabled = false;
-    let backend = Arc::new(MemoryBackend::new(saved_proxy()));
+    persisted.profiles[0].host = "127.0.0.1".into();
+    persisted.profiles[0].port = port;
+    let registry = ProxySnapshot {
+        proxy_server: format!("127.0.0.1:{port}"),
+        ..saved_proxy()
+    };
+    let backend = Arc::new(MemoryBackend::new(registry));
     let mut service = ProxyService::new(
         StateStore::new(dir.path()),
         backend,
@@ -112,7 +121,10 @@ fn service_recovery_fills_snapshot_and_marks_dirty() {
     let state = service.state();
     assert_eq!(state.state, ProxyState::On);
     assert_eq!(state.active_profile_id.as_deref(), Some("p_default"));
-    assert_eq!(state.snapshot.unwrap().proxy_server, "192.168.5.4:7890");
+    assert_eq!(
+        state.snapshot.unwrap().proxy_server,
+        format!("127.0.0.1:{port}")
+    );
 
     let saved = StateStore::new(dir.path()).load();
     assert!(!saved.state.clean_shutdown);

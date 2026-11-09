@@ -23,9 +23,9 @@ function error(code: string, message: string, hint?: string): never {
 
 function initialState(): AppState {
   const profiles: Profile[] = [
-    { id: 'p_default', name: '公司代理', protocol: 'http', host: '192.168.5.4', port: 7890 },
-    { id: 'p_backup', name: '备用代理', protocol: 'http', host: '192.168.5.9', port: 7890 },
-    { id: 'p_lab', name: '实验环境', protocol: 'http', host: '10.0.0.2', port: 8080 }
+    { id: 'p_default', name: '公司代理', protocol: 'http', host: '127.0.0.1', port: 7890 },
+    { id: 'p_backup', name: '备用代理', protocol: 'http', host: '127.0.0.1', port: 7890 },
+    { id: 'p_lab', name: '实验环境', protocol: 'http', host: '127.0.0.1', port: 8080 }
   ]
   return {
     state: 'on',

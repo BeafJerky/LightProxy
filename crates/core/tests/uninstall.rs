@@ -15,7 +15,7 @@ fn baseline() -> ProxySnapshot {
 fn active_target() -> ProxySnapshot {
     ProxySnapshot {
         proxy_enable: true,
-        proxy_server: "192.168.5.4:7890".into(),
+        proxy_server: "127.0.0.1:7890".into(),
         proxy_override: lightproxy_core::model::DEFAULT_PROXY_OVERRIDE.into(),
         auto_config_url: None,
     }

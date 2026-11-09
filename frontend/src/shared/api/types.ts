@@ -34,6 +34,7 @@ export interface Settings {
   trayClickAction: 'panel' | 'toggle'
   proxyOverride: string
   keepProxyOnExit: boolean
+  syncEnvProxy: boolean
 }
 
 export interface HealthResult {

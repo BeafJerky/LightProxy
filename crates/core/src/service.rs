@@ -1,4 +1,5 @@
 use crate::backend::ProxyBackend;
+use crate::env;
 use crate::error::{CoreError, CoreResult};
 use crate::health;
 use crate::model::{
@@ -172,7 +173,29 @@ impl<B: ProxyBackend> ProxyService<B> {
                 self.persisted.runtime.last_health = Some(result);
             }
         }
-        match recovery::decide_recovery(clean, &registry, &self.persisted, reachable) {
+        let decision = recovery::decide_recovery(clean, &registry, &self.persisted, reachable);
+        // Off arm 会清空 active_profile_id，而还原方向需要接管前的 active 配置计算
+        // 所有权，故环境收敛必须在 match 应用之前运行；方向由 decision 决定。
+        if self.persisted.settings.sync_env_proxy || self.persisted.env_snapshot.is_some() {
+            let result = match &decision {
+                RecoveryDecision::Off { .. } => self.reconcile_env(None),
+                RecoveryDecision::On { profile_id, .. } => {
+                    let profile = self.persisted.profile(profile_id).cloned();
+                    self.reconcile_env(profile.as_ref())
+                }
+                RecoveryDecision::Degraded { profile_id, .. } => {
+                    let profile = profile_id
+                        .as_deref()
+                        .and_then(|id| self.persisted.profile(id))
+                        .cloned();
+                    self.reconcile_env(profile.as_ref())
+                }
+            };
+            if let Err(err) = result {
+                self.message = Some(format!("启动恢复时命令行代理同步失败：{}", err.message));
+            }
+        }
+        match decision {
             RecoveryDecision::On {
                 profile_id,
                 fill_snapshot,
@@ -220,6 +243,12 @@ impl<B: ProxyBackend> ProxyService<B> {
             self.persisted.runtime.desired = Desired::On;
             self.persisted.runtime.active_profile_id = Some(profile.id.clone());
             self.set_state(ProxyState::On, None);
+            if let Err(err) = self.reconcile_env(Some(&profile)) {
+                self.message = Some(format!(
+                    "系统代理已开启，但命令行代理同步失败：{}",
+                    err.message
+                ));
+            }
             self.persist_and_emit();
             return Ok(self.app_state());
         }
@@ -264,6 +293,12 @@ impl<B: ProxyBackend> ProxyService<B> {
                 self.persisted.runtime.desired = Desired::On;
                 self.persisted.runtime.active_profile_id = Some(profile.id.clone());
                 self.set_state(ProxyState::On, None);
+                if let Err(err) = self.reconcile_env(Some(&profile)) {
+                    self.message = Some(format!(
+                        "系统代理已开启，但命令行代理同步失败：{}",
+                        err.message
+                    ));
+                }
                 self.persist_and_emit();
                 Ok(self.app_state())
             }
@@ -284,6 +319,7 @@ impl<B: ProxyBackend> ProxyService<B> {
 
     pub fn disable(&mut self) -> CoreResult<AppState> {
         if self.state == ProxyState::Off {
+            let _ = self.reconcile_env(None);
             self.persisted.snapshot = None;
             self.persisted.runtime.active_profile_id = None;
             self.persisted.runtime.desired = Desired::Off;
@@ -306,6 +342,18 @@ impl<B: ProxyBackend> ProxyService<B> {
         };
         match self.write_verified(&target) {
             Ok(()) => {
+                if let Err(err) = self.reconcile_env(None) {
+                    self.persisted.runtime.desired = Desired::Off;
+                    self.set_state(
+                        ProxyState::Error,
+                        Some(format!(
+                            "系统代理已关闭，但命令行代理未能恢复：{}",
+                            err.message
+                        )),
+                    );
+                    self.persist_and_emit();
+                    return Err(err);
+                }
                 self.persisted.snapshot = None;
                 self.persisted.runtime.active_profile_id = None;
                 self.persisted.runtime.desired = Desired::Off;
@@ -380,6 +428,12 @@ impl<B: ProxyBackend> ProxyService<B> {
                 self.persisted.runtime.active_profile_id = Some(profile.id.clone());
                 self.persisted.runtime.desired = Desired::On;
                 self.set_state(ProxyState::On, None);
+                if let Err(err) = self.reconcile_env(Some(&profile)) {
+                    self.message = Some(format!(
+                        "系统代理已切换，但命令行代理同步失败：{}",
+                        err.message
+                    ));
+                }
                 self.persist_and_emit();
                 Ok(self.app_state())
             }
@@ -547,6 +601,7 @@ impl<B: ProxyBackend> ProxyService<B> {
     }
 
     pub fn update_settings(&mut self, patch: serde_json::Value) -> CoreResult<AppState> {
+        let was_sync = self.persisted.settings.sync_env_proxy;
         let mut current = serde_json::to_value(&self.persisted.settings)?;
         merge_json(&mut current, patch);
         let mut settings: Settings = serde_json::from_value(current).map_err(|err| {
@@ -555,12 +610,43 @@ impl<B: ProxyBackend> ProxyService<B> {
         })?;
         settings.normalize();
         self.persisted.settings = settings;
+        let now_sync = self.persisted.settings.sync_env_proxy;
+        if was_sync != now_sync && self.state.is_active() {
+            let profile = self
+                .persisted
+                .runtime
+                .active_profile_id
+                .as_deref()
+                .and_then(|id| self.persisted.profile(id))
+                .cloned();
+            let result = if now_sync {
+                self.reconcile_env(profile.as_ref())
+            } else {
+                self.reconcile_env(None)
+            };
+            if let Err(err) = result {
+                self.message = Some(format!("设置已保存，但命令行代理同步失败：{}", err.message));
+            }
+        }
         self.persist_and_emit();
         Ok(self.app_state())
     }
 
     pub fn diagnostics(&self) -> Vec<Diagnostic> {
         let registry = self.backend.read().unwrap_or_default();
+        let env_current = self.backend.read_env().unwrap_or_default();
+        let env_expected = if self.persisted.settings.sync_env_proxy
+            && self.persisted.runtime.desired == Desired::On
+        {
+            self.persisted
+                .runtime
+                .active_profile_id
+                .as_deref()
+                .and_then(|id| self.persisted.profile(id))
+                .map(env::expected_vars)
+        } else {
+            None
+        };
         build_diagnostics(DiagnosticInput {
             desired: self.persisted.runtime.desired,
             state: self.state,
@@ -569,6 +655,10 @@ impl<B: ProxyBackend> ProxyService<B> {
             store_warning: self.store_warning.as_deref(),
             last_save_error: self.last_save_error.as_deref(),
             hotkey_failures: &self.hotkey_failures,
+            sync_env_proxy: self.persisted.settings.sync_env_proxy,
+            env_current: &env_current,
+            env_expected: env_expected.as_deref(),
+            env_snapshot_present: self.persisted.env_snapshot.is_some(),
         })
     }
 
@@ -582,6 +672,7 @@ impl<B: ProxyBackend> ProxyService<B> {
             let result = match id.as_str() {
                 "R01" | "R05" => self.repair_reapply(),
                 "R03" => self.repair_clear_pac(),
+                "R15" => self.repair_env(),
                 _ => RepairResult {
                     id: id.clone(),
                     title: "需要手动处理".into(),
@@ -617,6 +708,35 @@ impl<B: ProxyBackend> ProxyService<B> {
 
     pub fn set_hotkey_failures(&mut self, failures: Vec<String>) {
         self.hotkey_failures = failures;
+    }
+
+    fn repair_env(&mut self) -> RepairResult {
+        let profile = self
+            .persisted
+            .runtime
+            .active_profile_id
+            .as_deref()
+            .and_then(|id| self.persisted.profile(id))
+            .cloned();
+        let result = if self.persisted.runtime.desired == Desired::On {
+            self.reconcile_env(profile.as_ref())
+        } else {
+            self.reconcile_env(None)
+        };
+        match result {
+            Ok(()) => RepairResult {
+                id: "R15".into(),
+                title: "重新写入环境变量".into(),
+                ok: true,
+                message: "已同步命令行代理环境变量".into(),
+            },
+            Err(err) => RepairResult {
+                id: "R15".into(),
+                title: "重新写入环境变量".into(),
+                ok: false,
+                message: err.message,
+            },
+        }
     }
 
     fn repair_reapply(&mut self) -> RepairResult {
@@ -734,6 +854,79 @@ impl<B: ProxyBackend> ProxyService<B> {
             ),
         )
         .with_hint("检查组策略或安全软件是否锁定 Internet Settings"))
+    }
+
+    /// 把环境变量收敛到期望值。profile=Some 开启方向，None 还原方向。
+    fn reconcile_env(&mut self, profile: Option<&Profile>) -> CoreResult<()> {
+        if !self.persisted.settings.sync_env_proxy && profile.is_some() {
+            return Ok(());
+        }
+        let current = self.backend.read_env()?;
+        match profile {
+            Some(profile) => {
+                let expected = env::expected_vars(profile);
+                if self.persisted.env_snapshot.is_none()
+                    && env::already_applied(&current, &expected)
+                {
+                    return Ok(());
+                }
+                let mut snapshot = self.persisted.env_snapshot.clone().unwrap_or_default();
+                env::merge_capture(&mut snapshot, &current, &env::ENV_VARS);
+                self.persisted.env_snapshot = Some(snapshot.clone());
+                self.persist();
+                let target = env::apply_target(&snapshot, &expected);
+                if env::already_applied(&current, &target) {
+                    return Ok(());
+                }
+                self.backend.write_env(&target)?;
+                if let Err(err) = self.backend.notify_env() {
+                    self.message = Some(err.message);
+                }
+                Ok(())
+            }
+            None => {
+                let Some(snapshot) = self.persisted.env_snapshot.clone() else {
+                    return Ok(());
+                };
+                let active = self
+                    .persisted
+                    .runtime
+                    .active_profile_id
+                    .as_deref()
+                    .and_then(|id| self.persisted.profile(id))
+                    .cloned();
+                let Some(profile) = active else {
+                    self.message = Some("命令行代理配置无法解析，已保留当前环境变量".into());
+                    return Ok(());
+                };
+                let expected = env::expected_vars(&profile);
+                let owned = env::owned_names(&current, &expected);
+                let drifted: Vec<String> = expected
+                    .iter()
+                    .map(|e| env::canonical(&e.name))
+                    .filter(|n| !owned.contains(n))
+                    .collect();
+                if !drifted.is_empty() {
+                    self.message = Some(format!(
+                        "检测到命令行代理被外部修改，已保留：{}",
+                        drifted.join("、")
+                    ));
+                }
+                let target = env::restore_target(&snapshot, &current, &expected);
+                if target.is_empty() || env::already_applied(&current, &target) {
+                    self.persisted.env_snapshot = None;
+                    self.persist();
+                    return Ok(());
+                }
+                self.backend.write_env(&target)?;
+                if let Err(err) = self.backend.notify_env() {
+                    self.message = Some(err.message);
+                }
+                self.persisted.env_snapshot = None;
+                self.persist();
+                Ok(())
+            }
+        }
     }
 
     fn target_for(&self, profile: &Profile) -> ProxySnapshot {

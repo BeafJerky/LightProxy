@@ -16,5 +16,6 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   trayClickAction: 'panel',
   proxyOverride: DEFAULT_PROXY_OVERRIDE,
-  keepProxyOnExit: false
+  keepProxyOnExit: false,
+  syncEnvProxy: false
 }

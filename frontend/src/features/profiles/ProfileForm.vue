@@ -104,7 +104,7 @@ async function submit() {
           <span>主机</span>
           <n-input
             v-model:value="draft.host"
-            placeholder="192.168.5.4 或 proxy.local"
+            placeholder="127.0.0.1 或 proxy.local"
             :status="errors.host ? 'error' : undefined"
           />
           <em v-if="errors.host">{{ errors.host }}</em>

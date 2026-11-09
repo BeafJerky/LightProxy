@@ -82,9 +82,11 @@ pub fn restore_from_dir(
     let loaded = store.load();
     let outcome = restore_snapshot(backend, &loaded.state)?;
     let _ = restore_env(backend, &loaded.state);
+    // NotOwned keeps the registry as-is, but the snapshots are already unusable:
+    // leaving them behind would make a reinstall restore a stale environment.
     if matches!(
         outcome,
-        RestoreOutcome::Restored | RestoreOutcome::AlreadyRestored
+        RestoreOutcome::Restored | RestoreOutcome::AlreadyRestored | RestoreOutcome::NotOwned
     ) {
         let mut state = loaded.state;
         state.snapshot = None;
@@ -92,8 +94,9 @@ pub fn restore_from_dir(
         state.runtime.active_profile_id = None;
         state.runtime.desired = Desired::Off;
         state.clean_shutdown = true;
-        // The uninstaller deletes this directory anyway; a save failure must
-        // not turn a successful registry restore into an uninstall failure.
+        // The uninstaller does not remove this directory, so the cleanup must be
+        // persisted or a reinstall would reuse the old snapshots. A save failure
+        // must still not turn a completed registry restore into an uninstall failure.
         let _ = store.save(&state);
     }
     Ok(outcome)

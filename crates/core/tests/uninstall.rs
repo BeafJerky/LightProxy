@@ -1,5 +1,5 @@
 use lightproxy_core::backend::MemoryBackend;
-use lightproxy_core::model::{Desired, PersistedState, ProxySnapshot};
+use lightproxy_core::model::{Desired, EnvSnapshot, EnvVar, PersistedState, ProxySnapshot};
 use lightproxy_core::store::StateStore;
 use lightproxy_core::uninstall::{restore_from_dir, restore_snapshot, RestoreOutcome};
 
@@ -156,4 +156,35 @@ fn restore_from_dir_without_state_files_does_nothing() {
     );
     assert_eq!(backend.writes(), 0);
     assert!(!dir.path().join("state.json").exists());
+}
+
+#[test]
+fn not_owned_clears_persisted_snapshots_without_touching_registry() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = owned_state();
+    state.env_snapshot = Some(EnvSnapshot {
+        vars: vec![EnvVar {
+            name: "http_proxy".into(),
+            value: None,
+            expand: false,
+        }],
+    });
+    StateStore::new(dir.path()).save(&state).unwrap();
+    let mut current = active_target();
+    current.proxy_server = "10.9.9.9:1".into();
+    let backend = MemoryBackend::new(current.clone());
+
+    assert_eq!(
+        restore_from_dir(&backend, dir.path()).unwrap(),
+        RestoreOutcome::NotOwned
+    );
+    assert_eq!(backend.snapshot(), current);
+    assert_eq!(backend.writes(), 0);
+
+    let reloaded = StateStore::new(dir.path()).load().state;
+    assert!(reloaded.snapshot.is_none());
+    assert!(reloaded.env_snapshot.is_none());
+    assert_eq!(reloaded.runtime.desired, Desired::Off);
+    assert_eq!(reloaded.runtime.active_profile_id, None);
+    assert!(reloaded.clean_shutdown);
 }

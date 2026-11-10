@@ -76,6 +76,7 @@ pub fn run() {
             commands::disable_proxy,
             commands::switch_profile,
             commands::check_health,
+            commands::diagnose_profile,
             commands::list_profiles,
             commands::save_profile,
             commands::delete_profile,

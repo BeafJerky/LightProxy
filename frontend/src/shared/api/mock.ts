@@ -5,6 +5,7 @@ import type {
   AppState,
   CheckReport,
   CoreError,
+  DiagnoseReport,
   Diagnostic,
   HealthResult,
   Profile,
@@ -209,6 +210,28 @@ export function mockCall(
           checkedAtMs: nowMs(),
           error: null
         }
+      }
+      return report
+    }
+    case 'diagnose_profile': {
+      const input = args.input as ProfileInput
+      if (!['http', 'https', 'socks5'].includes(input.protocol)) {
+        error('invalid_protocol', '协议必须是 http、https 或 socks5')
+      }
+      if (!input.host.trim() || !input.port) {
+        error('invalid_endpoint', '请先填写主机与端口')
+      }
+      const report: DiagnoseReport = {
+        http: { ok: true, stage: 'http', latencyMs: 180, error: null },
+        socks5Domain: { ok: true, stage: 'http', latencyMs: 240, error: null },
+        systemSocks: {
+          ok: false,
+          stage: 'tls',
+          latencyMs: 3000,
+          error: 'TLS 握手失败：连接已关闭'
+        },
+        recommendation: 'http',
+        summary: 'HTTP 通道可用，建议使用 HTTP。'
       }
       return report
     }

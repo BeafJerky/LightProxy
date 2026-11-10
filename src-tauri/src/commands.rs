@@ -1,9 +1,10 @@
 use crate::app_ctx::AppCtx;
 use crate::hotkeys;
 use crate::window;
+use lightproxy_core::profile::profile_from_input;
 use lightproxy_core::{
-    health, now_ms, ActorHandle, AppState, CheckReport, CoreError, Diagnostic, HealthResult,
-    Profile, ProfileInput, RepairRecord, RepairResult, Settings,
+    health, now_ms, ActorHandle, AppState, CheckReport, CoreError, DiagnoseReport, Diagnostic,
+    HealthResult, Profile, ProfileInput, RepairRecord, RepairResult, Settings,
 };
 use serde::Serialize;
 use std::fs;
@@ -106,6 +107,25 @@ pub async fn check_health(
         tcp,
         proxy: Some(proxy),
     })
+}
+
+#[tauri::command]
+pub async fn diagnose_profile(
+    app: AppHandle,
+    input: ProfileInput,
+) -> Result<DiagnoseReport, CoreError> {
+    let profile = profile_from_input(
+        input.id.unwrap_or_default(),
+        input.name,
+        input.protocol,
+        input.host,
+        input.port,
+    )?;
+    let actor = actor(&app);
+    let state_actor = actor.clone();
+    let state = blocking(move || state_actor.get_state()).await?;
+    let timeout = health::verify_timeout(state.settings.preflight_timeout_ms);
+    blocking(move || Ok(lightproxy_core::diagnose::diagnose(&profile, timeout))).await
 }
 
 #[tauri::command]

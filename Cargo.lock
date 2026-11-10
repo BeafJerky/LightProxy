@@ -2104,7 +2104,7 @@ dependencies = [
 
 [[package]]
 name = "lightproxy"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "lightproxy-core",
  "lightproxy-update",
@@ -2121,9 +2121,10 @@ dependencies = [
 
 [[package]]
 name = "lightproxy-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "log",
+ "native-tls",
  "serde",
  "serde_json",
  "tempfile",
@@ -2133,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "lightproxy-update"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "lightproxy-core",
  "reqwest",

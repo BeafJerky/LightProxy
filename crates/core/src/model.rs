@@ -232,6 +232,43 @@ pub struct CheckReport {
     pub proxy: Option<HealthResult>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PathStage {
+    Proxy,
+    Tunnel,
+    Tls,
+    Http,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Recommendation {
+    Http,
+    Socks5System,
+    Socks5EnvOnly,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathResult {
+    pub ok: bool,
+    pub stage: PathStage,
+    pub latency_ms: u64,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnoseReport {
+    pub http: PathResult,
+    pub socks5_domain: PathResult,
+    pub system_socks: PathResult,
+    pub recommendation: Recommendation,
+    pub summary: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeState {

@@ -5,6 +5,7 @@ import type {
   AppState,
   CheckReport,
   CoreError,
+  DiagnoseReport,
   Diagnostic,
   Profile,
   ProfileInput,
@@ -49,6 +50,7 @@ export const api = {
     call<AppState>('switch_profile', { profileId, force }),
   checkHealth: (force = false, mode: 'tcp' | 'deep' = 'tcp') =>
     call<CheckReport>('check_health', { mode, force }),
+  diagnoseProfile: (input: ProfileInput) => call<DiagnoseReport>('diagnose_profile', { input }),
   listProfiles: () => call<Profile[]>('list_profiles'),
   saveProfile: (input: ProfileInput) => call<AppState>('save_profile', { input }),
   deleteProfile: (id: string) => call<AppState>('delete_profile', { id }),

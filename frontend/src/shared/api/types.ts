@@ -50,6 +50,24 @@ export interface CheckReport {
   proxy: HealthResult | null
 }
 
+export type PathStage = 'proxy' | 'tunnel' | 'tls' | 'http'
+export type DiagnoseRecommendation = 'http' | 'socks5System' | 'socks5EnvOnly' | 'unavailable'
+
+export interface DiagnosePathResult {
+  ok: boolean
+  stage: PathStage
+  latencyMs: number
+  error: string | null
+}
+
+export interface DiagnoseReport {
+  http: DiagnosePathResult
+  socks5Domain: DiagnosePathResult
+  systemSocks: DiagnosePathResult
+  recommendation: DiagnoseRecommendation
+  summary: string
+}
+
 export interface ProxySnapshot {
   proxyEnable: boolean
   proxyServer: string

@@ -5,6 +5,7 @@
 
 pub mod actor;
 pub mod backend;
+pub mod diagnose;
 pub mod env;
 pub mod error;
 pub mod health;

@@ -55,8 +55,8 @@ pub fn verify(profile: &Profile, timeout: Duration) -> HealthResult {
     stream.set_read_timeout(Some(timeout)).ok();
     stream.set_write_timeout(Some(timeout)).ok();
     let outcome = match profile.protocol {
-        Protocol::Socks5 => socks5_connect(&mut stream),
-        Protocol::Http | Protocol::Https => http_connect(&mut stream),
+        Protocol::Socks5 => socks5_connect(&mut stream, VERIFY_HOST, VERIFY_PORT),
+        Protocol::Http | Protocol::Https => http_connect(&mut stream, VERIFY_HOST, VERIFY_PORT),
     };
     match outcome {
         Ok(()) => success(started, "proxy"),
@@ -83,9 +83,9 @@ fn connect(host: &str, port: u16, timeout: Duration) -> Result<TcpStream, Connec
     Err(last)
 }
 
-fn http_connect(stream: &mut TcpStream) -> Result<(), String> {
+pub(crate) fn http_connect(stream: &mut TcpStream, host: &str, port: u16) -> Result<(), String> {
     let request = format!(
-        "CONNECT {VERIFY_HOST}:{VERIFY_PORT} HTTP/1.1\r\nHost: {VERIFY_HOST}:{VERIFY_PORT}\r\nProxy-Connection: Keep-Alive\r\n\r\n"
+        "CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\nProxy-Connection: Keep-Alive\r\n\r\n"
     );
     write_all(stream, request.as_bytes())?;
     let mut response = Vec::new();
@@ -116,7 +116,7 @@ fn http_connect(stream: &mut TcpStream) -> Result<(), String> {
     }
 }
 
-fn socks5_connect(stream: &mut TcpStream) -> Result<(), String> {
+pub(crate) fn socks5_connect(stream: &mut TcpStream, host: &str, port: u16) -> Result<(), String> {
     write_all(stream, &[0x05, 0x01, 0x00])?;
     let mut method = [0u8; 2];
     read_exact(stream, &mut method)?;
@@ -127,11 +127,11 @@ fn socks5_connect(stream: &mut TcpStream) -> Result<(), String> {
         return Err("代理返回了无法识别的 SOCKS5 响应".into());
     }
 
-    let host = VERIFY_HOST.as_bytes();
+    let host = host.as_bytes();
     let mut request = Vec::with_capacity(7 + host.len());
     request.extend_from_slice(&[0x05, 0x01, 0x00, 0x03, host.len() as u8]);
     request.extend_from_slice(host);
-    request.extend_from_slice(&VERIFY_PORT.to_be_bytes());
+    request.extend_from_slice(&port.to_be_bytes());
     write_all(stream, &request)?;
 
     let mut head = [0u8; 4];

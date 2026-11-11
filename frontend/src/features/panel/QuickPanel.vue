@@ -89,7 +89,7 @@ function openRepair() {
   <div class="window tray-panel" :class="`state-${tone}`">
     <header class="panel-head" data-tauri-drag-region>
       <div class="app-id">
-        <span class="app-mark"><Icon name="chain" :size="16" /></span>
+        <span class="app-mark"><Icon name="lever" :size="24" /></span>
         <div>
           <strong>LightProxy</strong>
           <span class="panel-sub">代理切换器</span>

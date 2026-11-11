@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "LightProxy",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "identifier": "com.lightproxy.desktop",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -32,7 +32,9 @@
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,
-        "installerHooks": "nsis/hooks.nsh"
+        "installerHooks": "nsis/hooks.nsh",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
       }
     }
   }

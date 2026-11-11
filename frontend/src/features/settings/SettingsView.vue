@@ -52,7 +52,7 @@ function close() {
         <button class="icon-btn back" type="button" title="返回快捷面板" @click="store.openPanel()">
           <Icon name="arrowLeft" :size="16" />
         </button>
-        <span class="app-mark small"><Icon name="chain" :size="12" /></span>
+        <span class="app-mark small"><Icon name="lever" :size="14" /></span>
         <span>LightProxy 设置</span>
       </div>
       <div class="window-controls">

@@ -59,44 +59,49 @@ function roundedRectSdf(px, py, cx, cy, hx, hy, radius) {
   return outside + inside - radius
 }
 
+function coverage(distancePx) {
+  return Math.min(Math.max(0.5 - distancePx, 0), 1)
+}
+
+function segmentDistance(px, py, ax, ay, bx, by) {
+  const vx = bx - ax
+  const vy = by - ay
+  const lengthSq = vx * vx + vy * vy
+  const t = lengthSq === 0 ? 0 : Math.min(Math.max(((px - ax) * vx + (py - ay) * vy) / lengthSq, 0), 1)
+  return Math.hypot(px - (ax + t * vx), py - (ay + t * vy))
+}
+
+// Lever geometry in a 32-unit design space, matching frontend/public/favicon.svg.
 function render(size) {
   const pixels = Buffer.alloc(size * size * 4)
   const bg = [0x25, 0x63, 0xeb]
   const fg = [0xff, 0xff, 0xff]
-  const ringStroke = Math.max(size * 0.075, 1.2)
-  const halfX = size * 0.19
-  const halfY = size * 0.145
-  const radius = size * 0.13
-  const centers = [size * 0.355, size * 0.645]
-  const cy = size * 0.5
+  const unit = size / 32
+  const stroke = 4.25
+  const baseY = 22.15
+  const baseLeft = 7
+  const baseRight = 25.25
+  const armX = 16.125
+  const knobX = 21.875
+  const knobY = 12.1875
 
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
-      const px = x + 0.5
-      const py = y + 0.5
-      const bgSdf = roundedRectSdf(px, py, size / 2, size / 2, size / 2, size / 2, size * 0.226)
-      let color = null
-      if (bgSdf <= 0) {
-        color = bg
-        const inGap = Math.abs(px - size / 2) < Math.max(size * 0.018, 0.8) &&
-          Math.abs(py - cy) < halfY + ringStroke
-        if (!inGap) {
-          for (const cx of centers) {
-            const sdf = roundedRectSdf(px, py, cx, cy, halfX, halfY, radius)
-            if (Math.abs(sdf) <= ringStroke / 2) {
-              color = fg
-              break
-            }
-          }
-        }
-      }
+      const px = (x + 0.5) / unit
+      const py = (y + 0.5) / unit
+      const tileCoverage = coverage(roundedRectSdf(px, py, 16, 16, 16, 16, 8) * unit)
+      if (tileCoverage <= 0) continue
+      const markDistance = Math.min(
+        segmentDistance(px, py, baseLeft, baseY, baseRight, baseY) - stroke / 2,
+        segmentDistance(px, py, armX, baseY, knobX, knobY) - stroke / 2,
+        Math.hypot(px - knobX, py - knobY) - stroke
+      ) * unit
+      const markCoverage = coverage(markDistance)
       const offset = (y * size + x) * 4
-      if (color) {
-        pixels[offset] = color[0]
-        pixels[offset + 1] = color[1]
-        pixels[offset + 2] = color[2]
-        pixels[offset + 3] = 255
-      }
+      pixels[offset] = Math.round(fg[0] * markCoverage + bg[0] * (1 - markCoverage))
+      pixels[offset + 1] = Math.round(fg[1] * markCoverage + bg[1] * (1 - markCoverage))
+      pixels[offset + 2] = Math.round(fg[2] * markCoverage + bg[2] * (1 - markCoverage))
+      pixels[offset + 3] = Math.round(tileCoverage * 255)
     }
   }
   return encodePng(size, size, pixels)

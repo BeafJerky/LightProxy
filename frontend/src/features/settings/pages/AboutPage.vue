@@ -125,7 +125,7 @@ function confirmInstall() {
 
     <SectionCard>
       <div class="brand">
-        <span class="brand-mark"><Icon name="chain" :size="22" /></span>
+        <span class="brand-mark"><Icon name="lever" :size="36" /></span>
         <div class="brand-copy">
           <div class="brand-name">
             <strong>LightProxy</strong>

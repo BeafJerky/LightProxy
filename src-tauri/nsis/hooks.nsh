@@ -1,3 +1,9 @@
+!macro NSIS_HOOK_POSTINSTALL
+  ; Windows caches exe icons by path, so upgrades keep showing the old mark until
+  ; the shell is told this file changed.
+  System::Call 'shell32::SHChangeNotify(i 0x00002000, i 0x0005, w "$INSTDIR\${MAINBINARYNAME}.exe", p 0)'
+!macroend
+
 !macro NSIS_HOOK_PREUNINSTALL
   ; Updates keep the running tray app, which still owns the proxy snapshot, so
   ; only a real uninstall restores. Exit code 2 means an external program owns

@@ -31,7 +31,7 @@ function token(source: string, name: string): string {
 }
 
 const CASES: Array<{ resolved: ResolvedTheme; marker: string }> = [
-  { resolved: { theme: 'light', pack: 'default' }, marker: '--bg: #eef1f5;' },
+  { resolved: { theme: 'light', pack: 'default' }, marker: '--bg: #f3f5f9;' },
   { resolved: { theme: 'dark', pack: 'default' }, marker: '--bg: #111317;' },
   { resolved: { theme: 'light', pack: 'win11' }, marker: '--bg: #f3f3f3;' },
   { resolved: { theme: 'dark', pack: 'win11-dark' }, marker: '--bg: #202020;' },

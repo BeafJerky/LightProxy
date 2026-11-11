@@ -1,6 +1,6 @@
 # LightProxy
 
-> 当前为 **0.x 测试版**（v0.5.0）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
+> 当前为 **0.x 测试版**（v0.6.0）。功能、界面与数据格式可能继续调整，不承诺向后兼容。版本与发布规则见 [VERSIONING.md](./VERSIONING.md)，变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 Windows 托盘上的系统代理快捷开关。基于 Tauri 2 + Rust + Vue 3 + Naive UI，单实例常驻，面板 360×560，设置页 780×640。
 
